@@ -13,7 +13,7 @@ use axum::{
     response::IntoResponse,
     routing::{delete, get, post},
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use omnitak_client::{
     Bytes, BytesMut, ClientConfig, CotMessage, ReconnectConfig, TakClient,
     tcp::{FramingMode, TcpClient, TcpClientConfig},
@@ -204,16 +204,76 @@ async fn list_connections(
     Query(query): Query<ListQuery>,
     _user: AuthUser,
 ) -> Result<Json<ConnectionList>, ApiError> {
-    // Get connections from state
-    let all_connections = state.connections.read().await;
+    // Get connections from state (API-created connections)
+    let api_connections = state.connections.read().await;
+
+    // Get connections from pool (config-file connections)
+    let pool_connections = state.pool.get_active_connections();
+
+    // Convert pool connections to ConnectionInfo format
+    let pool_connection_infos: Vec<ConnectionInfo> = pool_connections
+        .iter()
+        .map(|conn| {
+            // Parse address to extract host and port
+            let (host, port) = if let Some(idx) = conn.address.rfind(':') {
+                let host = conn.address[..idx].to_string();
+                let port = conn.address[idx + 1..].parse().unwrap_or(8089);
+                (host, port)
+            } else {
+                (conn.address.clone(), 8089)
+            };
+
+            // Convert last_message timestamp to DateTime
+            let last_message_ms = conn.state.last_message.load(std::sync::atomic::Ordering::Relaxed);
+            let last_activity = if last_message_ms > 0 {
+                DateTime::from_timestamp_millis(last_message_ms as i64)
+            } else {
+                None
+            };
+
+            // Determine status based on connection state
+            let status = if conn.state.is_active() {
+                ConnectionStatus::Connected
+            } else {
+                ConnectionStatus::Disconnected
+            };
+
+            ConnectionInfo {
+                // Create a deterministic UUID from the connection ID
+                id: {
+                    use std::hash::{Hash, Hasher};
+                    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                    conn.id.hash(&mut hasher);
+                    let hash = hasher.finish();
+                    Uuid::from_u64_pair(hash, hash.wrapping_mul(0x517cc1b727220a95))
+                },
+                name: conn.name.clone(),
+                connection_type: ConnectionType::TlsClient, // Pool connections are TLS
+                status,
+                address: host,
+                port,
+                messages_received: conn.state.messages_received.load(std::sync::atomic::Ordering::Relaxed),
+                messages_sent: conn.state.messages_sent.load(std::sync::atomic::Ordering::Relaxed),
+                bytes_received: 0, // Pool doesn't track bytes separately
+                bytes_sent: 0,
+                connected_at: Some(Utc::now() - chrono::Duration::from_std(conn.created_at.elapsed()).unwrap_or_default()),
+                last_activity,
+                error: conn.state.last_error.read().clone(),
+            }
+        })
+        .collect();
+
+    // Merge both connection lists
+    let mut all_connections: Vec<ConnectionInfo> = api_connections.iter().cloned().collect();
+    all_connections.extend(pool_connection_infos);
+
     let total = all_connections.len();
 
     // Apply pagination
     let connections: Vec<ConnectionInfo> = all_connections
-        .iter()
+        .into_iter()
         .skip(query.offset)
         .take(query.limit)
-        .cloned()
         .collect();
 
     Ok(Json(ConnectionList { total, connections }))
