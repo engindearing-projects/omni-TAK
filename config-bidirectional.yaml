@@ -1,0 +1,38 @@
+# OmniTAK Bidirectional Aggregator Configuration
+# Connects to TAK Server 5.5 at ots.engindearing.soy
+
+# REST API Configuration (optional)
+api:
+  bind_addr: "127.0.0.1:9443"
+  enable_tls: false
+
+# TAK Server Connections
+servers:
+  # Official TAK Server 5.5 at ots.engindearing.soy
+  - id: tak-server-55
+    address: "ots.engindearing.soy:8089"
+    protocol: "tls"
+    tls:
+      cert_path: "/Users/iesouskurios/omniTAK/certs/admin.p12"
+      key_path: "/Users/iesouskurios/omniTAK/certs/admin.p12"
+      ca_path: "/Users/iesouskurios/omniTAK/certs/ca.pem"
+
+# Listeners for incoming ATAK clients (optional - uncomment to enable)
+# listeners:
+#   - id: tcp-listener-8087
+#     enabled: true
+#     bind_addr: "0.0.0.0:8087"
+#     protocol: tcp
+#     max_connections: 100
+#
+#   - id: tls-listener-8089
+#     enabled: true
+#     bind_addr: "0.0.0.0:8089"
+#     protocol: tls
+#     max_connections: 100
+#     tls:
+#       cert_path: "/Users/iesouskurios/omniTAK/certs/server-cert.pem"
+#       key_path: "/Users/iesouskurios/omniTAK/certs/server-key.pem"
+#       client_auth:
+#         required: false
+#         ca_path: "/Users/iesouskurios/omniTAK/certs/ca.pem"

@@ -1,0 +1,74 @@
+# OmniTAK Configuration - TAK Server Bridge for iTAK
+# Connects to tak.engindearing.soy and accepts local iTAK connections
+
+application:
+  max_connections: 50
+  worker_threads: 4
+
+# TAK Server Connection (upstream)
+servers:
+  - id: tak-engindearing
+    name: "TAK Server (tak.engindearing.soy)"
+    address: "tak.engindearing.soy:8089"
+    protocol: tls
+    auto_reconnect: true
+    reconnect_delay_ms: 5000
+    tls:
+      cert_path: "/Users/iesouskurios/omniTAK/certs/iphone.p12"
+      key_path: "/Users/iesouskurios/omniTAK/certs/iphone.p12"
+      ca_path: "/Users/iesouskurios/omniTAK/certs/tak-server-ca.pem"
+      verify_server: false
+
+# Local Listeners for iTAK connections
+listeners:
+  # TCP Listener (unencrypted - for local network only)
+  - id: tcp-listener-local
+    enabled: true
+    bind_addr: "0.0.0.0:8087"
+    protocol: tcp
+    max_connections: 20
+
+# Message Filtering Rules (pass all messages through)
+filters:
+  mode: whitelist
+  rules:
+    - id: allow-all
+      type: affiliation
+      allow: [friend, assumedfriend, hostile, neutral, unknown, pending]
+      destinations: [tak-engindearing]
+
+# REST API Configuration
+api:
+  bind_addr: "127.0.0.1:9443"
+  enable_tls: false
+  jwt_expiration: 86400
+  rate_limit_rps: 100
+  enable_swagger: true
+  enable_static_files: true
+
+# Authentication
+auth:
+  admin_user: "admin"
+  admin_password: "admin123"
+
+# Logging
+logging:
+  level: "info"
+  format: "text"
+
+# Metrics
+metrics:
+  enabled: true
+
+# Performance Tuning
+performance:
+  buffer_size: 8192
+  max_message_size: 1048576
+  connection_timeout: 30
+  keepalive_interval: 60
+
+# Security
+security:
+  audit_logging: true
+  cors_origins:
+    - "http://localhost:3000"
