@@ -182,6 +182,31 @@ pub struct DeleteConnectionResponse {
     pub message: String,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct TestConnectionRequest {
+    /// Target address as "host:port"
+    pub address: String,
+
+    /// Optional protocol hint (tcp/tls); informational only for the reachability probe
+    #[serde(default)]
+    pub protocol: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TestConnectionResponse {
+    pub success: bool,
+    /// Round-trip time of the TCP connect, in milliseconds
+    pub latency: u64,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ReconnectResponse {
+    pub id: Uuid,
+    pub status: ConnectionStatus,
+    pub message: String,
+}
+
 // ============================================================================
 // Filter Management
 // ============================================================================

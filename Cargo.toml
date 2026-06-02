@@ -120,10 +120,17 @@ path = "src/bin/omnitak-adb-setup.rs"
 [[bin]]
 name = "omnitak-gui"
 path = "src/bin/omnitak-gui.rs"
+required-features = ["gui"]
 
 [[bin]]
 name = "omnitak-gen"
 path = "src/bin/omnitak-gen.rs"
+
+[features]
+# GUI is on by default for desktop builds. Headless/server builds (e.g. Docker)
+# use --no-default-features to skip eframe/egui/winit, which have no headless backend.
+default = ["gui"]
+gui = ["dep:omnitak-gui", "dep:eframe", "dep:egui"]
 
 [dependencies]
 omnitak-core = { path = "crates/omnitak-core" }
@@ -133,7 +140,7 @@ omnitak-filter = { path = "crates/omnitak-filter" }
 omnitak-pool = { path = "crates/omnitak-pool" }
 omnitak-cert = { path = "crates/omnitak-cert" }
 omnitak-api = { path = "crates/omnitak-api" }
-omnitak-gui = { path = "crates/omnitak-gui" }
+omnitak-gui = { path = "crates/omnitak-gui", optional = true }
 omnitak-adb = { path = "crates/omnitak-adb" }
 omnitak-discovery = { path = "crates/omnitak-discovery" }
 omnitak-plugin-api = { path = "crates/omnitak-plugin-api" }
@@ -154,8 +161,8 @@ config = { workspace = true }
 futures = "0.3"
 chrono = { workspace = true }
 uuid = { workspace = true }
-eframe = { workspace = true }
-egui = { workspace = true }
+eframe = { workspace = true, optional = true }
+egui = { workspace = true, optional = true }
 libc = "0.2"
 
 [dev-dependencies]

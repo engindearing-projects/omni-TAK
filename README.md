@@ -92,6 +92,30 @@ git clone https://github.com/engindearing-projects/omniTAK.git
 cd omniTAK
 ```
 
+### Option A: Docker (fastest)
+
+Spin up the aggregator and its web management UI in one container — no Rust toolchain required:
+
+```bash
+docker compose up --build
+```
+
+Then open **http://localhost:8080** and sign in:
+- Username: `admin`
+- Password: `changeme`  (override with `OMNITAK_ADMIN_PASSWORD`)
+
+```bash
+# Use your own admin password:
+OMNITAK_ADMIN_PASSWORD=your_secure_password docker compose up --build
+```
+
+The embedded web UI (login, dashboard, connection management) is served directly by the
+binary at the same origin as the API, so there's nothing else to start. This is a test-mode
+sample — TLS is off and the default credentials are well-known, so don't expose it to the
+public internet as-is.
+
+### Option B: Build from source
+
 ### Step 1: Start the Main Server
 
 The main server provides the REST API that all interfaces use.
@@ -134,15 +158,11 @@ The server is now running! Keep this terminal open.
 
 The web interface is a browser-based control panel for managing TAK server connections.
 
-**In a new terminal:**
-
-```bash
-cd omniTAK/web-client
-python3 -m http.server 8080
-```
+The UI is **embedded in the binary** and served by the server itself at the same address as
+the API — just open the server's address in a browser:
 
 **Open your browser:**
-- URL: http://localhost:8080
+- URL: http://localhost:9443  (the `bind_addr` from Step 1)
 - Login with: `admin` / `your_secure_password`
 
 **Features:**

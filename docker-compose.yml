@@ -1,0 +1,29 @@
+# OmniTAK — quick-start Docker stack
+#
+#   docker compose up --build
+#
+# Then open http://localhost:8080 and sign in with:
+#   username: admin
+#   password: changeme   (override with OMNITAK_ADMIN_PASSWORD)
+#
+# This is a test-mode sample for evaluation. TLS is off and the default
+# credentials are well-known — do not expose this to the public internet.
+services:
+  omnitak:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: omnitak:latest
+    container_name: omnitak
+    ports:
+      - "8080:8080"
+    environment:
+      # Change this. The admin user is always "admin".
+      OMNITAK_ADMIN_PASSWORD: "${OMNITAK_ADMIN_PASSWORD:-changeme}"
+    restart: unless-stopped
+    # Persist the embedded CA / certs the aggregator generates on first run.
+    volumes:
+      - omnitak-certs:/app/certs
+
+volumes:
+  omnitak-certs:

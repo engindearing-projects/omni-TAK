@@ -59,6 +59,8 @@ pub fn create_rest_router(state: ApiState) -> Router {
         .route("/api/v1/connections", post(create_connection))
         .route("/api/v1/connections/{id}", get(get_connection))
         .route("/api/v1/connections/{id}", delete(delete_connection))
+        .route("/api/v1/connections/{id}/reconnect", post(reconnect_connection))
+        .route("/api/v1/test-connection", post(test_connection))
         // Filter management
         .route("/api/v1/filters", get(list_filters))
         .route("/api/v1/filters", post(create_filter))
@@ -252,6 +254,30 @@ async fn get_connection(
     Ok(Json(connection))
 }
 
+/// Update the tracked status of a connection in the shared connections list.
+/// Called from the client task so the UI reflects the live socket state.
+async fn set_connection_status(
+    connections: &Arc<RwLock<Vec<ConnectionInfo>>>,
+    id: Uuid,
+    status: ConnectionStatus,
+    error: Option<String>,
+) {
+    let mut conns = connections.write().await;
+    if let Some(conn) = conns.iter_mut().find(|c| c.id == id) {
+        conn.status = status;
+        match status {
+            ConnectionStatus::Connected => {
+                conn.connected_at = Some(Utc::now());
+                conn.error = None;
+            }
+            ConnectionStatus::Error => {
+                conn.error = error;
+            }
+            _ => {}
+        }
+    }
+}
+
 /// POST /api/v1/connections - Create new connection
 #[utoipa::path(
     post,
@@ -349,16 +375,30 @@ async fn create_connection(
 
             let mut client = TcpClient::new(config);
 
+            // Capture handles so the client task can keep ConnectionInfo.status in sync
+            // with the live socket (otherwise the UI shows "Connecting..." forever).
+            let status_conns = Arc::clone(&state.connections);
+            let status_id = connection_id;
+
             // Spawn client task
             tokio::spawn(async move {
                 info!(id = %id_clone, "Connecting TCP client");
 
                 if let Err(e) = client.connect_only().await {
                     error!(id = %id_clone, error = %e, "Failed to connect TCP client");
+                    set_connection_status(
+                        &status_conns,
+                        status_id,
+                        ConnectionStatus::Error,
+                        Some(e.to_string()),
+                    )
+                    .await;
                     return;
                 }
 
                 info!(id = %id_clone, address = %address_clone, "TCP client connected");
+                set_connection_status(&status_conns, status_id, ConnectionStatus::Connected, None)
+                    .await;
 
                 let client_arc = Arc::new(tokio::sync::Mutex::new(client));
                 let client_read = Arc::clone(&client_arc);
@@ -444,6 +484,16 @@ async fn create_connection(
                     _ = read_task => {}
                     _ = write_task => {}
                 }
+
+                // The socket closed (remote hang-up, idle timeout, or error).
+                info!(id = %id_clone, "TCP client disconnected");
+                set_connection_status(
+                    &status_conns,
+                    status_id,
+                    ConnectionStatus::Disconnected,
+                    None,
+                )
+                .await;
             });
         }
         ConnectionType::TlsClient => {
@@ -689,6 +739,82 @@ async fn delete_connection(
     Ok(Json(DeleteConnectionResponse {
         message: "Connection deleted successfully".to_string(),
     }))
+}
+
+/// POST /api/v1/connections/:id/reconnect - Request a reconnect for a connection
+async fn reconnect_connection(
+    State(state): State<ApiState>,
+    Path(id): Path<Uuid>,
+    RequireOperator(user): RequireOperator,
+    ConnectInfo(client_addr): ConnectInfo<SocketAddr>,
+) -> Result<Json<ReconnectResponse>, ApiError> {
+    info!(connection_id = %id, "Reconnect requested");
+
+    // Flip the tracked status to Connecting; the pool's health monitor drives the
+    // actual reconnect on its next cycle for connections with auto-reconnect enabled.
+    let mut connections = state.connections.write().await;
+    let conn = connections
+        .iter_mut()
+        .find(|c| c.id == id)
+        .ok_or_else(|| ApiError::NotFound(format!("Connection {} not found", id)))?;
+    conn.status = ConnectionStatus::Connecting;
+    conn.error = None;
+    drop(connections);
+
+    state.audit_logger.log(
+        user.user_id.unwrap_or_else(|| "api_key".to_string()),
+        user.role,
+        "reconnect_connection".to_string(),
+        format!("/api/v1/connections/{}/reconnect", id),
+        serde_json::json!({ "connection_id": id }),
+        client_addr.ip().to_string(),
+        true,
+    );
+
+    Ok(Json(ReconnectResponse {
+        id,
+        status: ConnectionStatus::Connecting,
+        message: "Reconnect requested".to_string(),
+    }))
+}
+
+/// POST /api/v1/test-connection - Probe TCP reachability of a host:port
+async fn test_connection(
+    _user: AuthUser,
+    Json(request): Json<TestConnectionRequest>,
+) -> Result<Json<TestConnectionResponse>, ApiError> {
+    let address = request.address.trim().to_string();
+    if address.is_empty() {
+        return Err(ApiError::BadRequest("address is required".to_string()));
+    }
+
+    info!(address = %address, "Testing connection reachability");
+
+    let start = std::time::Instant::now();
+    let probe = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::net::TcpStream::connect(&address),
+    )
+    .await;
+
+    match probe {
+        Ok(Ok(_stream)) => {
+            let latency = start.elapsed().as_millis() as u64;
+            Ok(Json(TestConnectionResponse {
+                success: true,
+                latency,
+                message: format!("Reachable at {}", address),
+            }))
+        }
+        Ok(Err(e)) => Err(ApiError::BadRequest(format!(
+            "Could not connect to {}: {}",
+            address, e
+        ))),
+        Err(_) => Err(ApiError::BadRequest(format!(
+            "Connection to {} timed out after 5s",
+            address
+        ))),
+    }
 }
 
 // ============================================================================
