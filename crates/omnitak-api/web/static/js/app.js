@@ -209,10 +209,15 @@ async function handleAddConnection(event) {
         validate_certs: verifyHostnameEl ? verifyHostnameEl.checked : true
     };
 
-    if (protocol === 'tls' && !state.certificates.client_cert && !state.certificates.client_key) {
-        // Note: client certs uploaded in the browser aren't yet forwarded to the server,
-        // which expects cert paths on its own host. TLS uses the server's trust store.
-        showToast('Note: TLS selected; uploaded client certs are not yet sent to the server', 'warning');
+    if (protocol === 'tls') {
+        // Forward uploaded cert material (base64 PEM or PKCS#12) to the server.
+        const certs = state.certificates;
+        if (certs.client_cert && certs.client_cert.data) connectionData.tls_client_cert_pem_b64 = certs.client_cert.data;
+        if (certs.client_key && certs.client_key.data) connectionData.tls_client_key_pem_b64 = certs.client_key.data;
+        if (certs.ca_cert && certs.ca_cert.data) connectionData.tls_ca_cert_pem_b64 = certs.ca_cert.data;
+        if (!certs.client_cert || !certs.client_cert.data) {
+            showToast('TLS selected but no client certificate uploaded', 'warning');
+        }
     }
 
     try {

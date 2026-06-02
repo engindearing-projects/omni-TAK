@@ -58,8 +58,16 @@ pub struct SystemStatus {
     /// Total number of active connections
     pub active_connections: usize,
 
-    /// Total messages processed
+    /// Total messages received from TAK servers
     pub messages_processed: u64,
+
+    /// Total messages sent to TAK servers
+    #[serde(default)]
+    pub messages_sent: u64,
+
+    /// Total connection errors
+    #[serde(default)]
+    pub errors: u64,
 
     /// Messages per second (last minute)
     pub messages_per_second: f64,
@@ -157,6 +165,19 @@ pub struct CreateConnectionRequest {
     /// TLS key path (for TLS connections)
     #[validate(length(max = 500))]
     pub tls_key_path: Option<String>,
+
+    /// Inline PEM client certificate (base64 of the PEM file), uploaded from the browser.
+    /// When present, persisted server-side and used instead of tls_cert_path.
+    #[serde(default)]
+    pub tls_client_cert_pem_b64: Option<String>,
+
+    /// Inline PEM client private key (base64 of the PEM file).
+    #[serde(default)]
+    pub tls_client_key_pem_b64: Option<String>,
+
+    /// Inline PEM CA certificate (base64 of the PEM file).
+    #[serde(default)]
+    pub tls_ca_cert_pem_b64: Option<String>,
 
     /// Validate TLS certificates
     #[serde(default = "default_validate_certs")]
