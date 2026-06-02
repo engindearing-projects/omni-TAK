@@ -1,23 +1,23 @@
 //! REST API endpoints using Axum
 
-pub mod plugins;
 pub mod enrollment;
+pub mod plugins;
 
 use crate::auth::{AuthService, AuthUser, RequireAdmin, RequireOperator};
 use crate::middleware::AuditLogger;
 use crate::types::*;
 use axum::{
-    Json, Router,
     extract::{ConnectInfo, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post},
+    Json, Router,
 };
 use chrono::Utc;
 use omnitak_client::{
-    Bytes, BytesMut, ClientConfig, CotMessage, ReconnectConfig, TakClient,
     tcp::{FramingMode, TcpClient, TcpClientConfig},
     tls::{TlsClient, TlsClientConfig},
+    Bytes, BytesMut, ClientConfig, CotMessage, ReconnectConfig, TakClient,
 };
 use omnitak_pool::{ConnectionPool, FilterRule as PoolFilterRule, MessageDistributor, PoolMessage};
 use quick_xml;
@@ -59,6 +59,11 @@ pub fn create_rest_router(state: ApiState) -> Router {
         .route("/api/v1/connections", post(create_connection))
         .route("/api/v1/connections/{id}", get(get_connection))
         .route("/api/v1/connections/{id}", delete(delete_connection))
+        .route(
+            "/api/v1/connections/{id}/reconnect",
+            post(reconnect_connection),
+        )
+        .route("/api/v1/test-connection", post(test_connection))
         // Filter management
         .route("/api/v1/filters", get(list_filters))
         .route("/api/v1/filters", post(create_filter))
@@ -75,14 +80,35 @@ pub fn create_rest_router(state: ApiState) -> Router {
         .route("/api/v1/audit", get(get_audit_logs))
         // ADB integration (requires operator role)
         .route("/api/v1/adb/devices", get(crate::adb::list_devices))
-        .route("/api/v1/adb/pull-certs", post(crate::adb::pull_certificates))
+        .route(
+            "/api/v1/adb/pull-certs",
+            post(crate::adb::pull_certificates),
+        )
         // Discovery service routes (if enabled)
-        .route("/api/v1/discovery/status", get(crate::discovery::get_discovery_status))
-        .route("/api/v1/discovery/services", get(crate::discovery::list_discovered_services))
-        .route("/api/v1/discovery/services/{id}", get(crate::discovery::get_discovered_service))
-        .route("/api/v1/discovery/refresh", post(crate::discovery::refresh_discovery))
-        .route("/api/v1/discovery/tak-servers", get(crate::discovery::list_tak_servers))
-        .route("/api/v1/discovery/atak-devices", get(crate::discovery::list_atak_devices))
+        .route(
+            "/api/v1/discovery/status",
+            get(crate::discovery::get_discovery_status),
+        )
+        .route(
+            "/api/v1/discovery/services",
+            get(crate::discovery::list_discovered_services),
+        )
+        .route(
+            "/api/v1/discovery/services/{id}",
+            get(crate::discovery::get_discovered_service),
+        )
+        .route(
+            "/api/v1/discovery/refresh",
+            post(crate::discovery::refresh_discovery),
+        )
+        .route(
+            "/api/v1/discovery/tak-servers",
+            get(crate::discovery::list_tak_servers),
+        )
+        .route(
+            "/api/v1/discovery/atak-devices",
+            get(crate::discovery::list_atak_devices),
+        )
         .with_state(state)
 }
 
@@ -114,10 +140,10 @@ async fn get_system_status(
     // Calculate uptime
     let uptime_seconds = state.start_time.elapsed().as_secs();
 
-    // Calculate messages per second (simple average over uptime)
-    let messages_processed = pool_stats.total_messages_received + pool_stats.total_messages_sent;
+    // Throughput is the combined message rate over uptime.
+    let total_messages = pool_stats.total_messages_received + pool_stats.total_messages_sent;
     let messages_per_second = if uptime_seconds > 0 {
-        messages_processed as f64 / uptime_seconds as f64
+        total_messages as f64 / uptime_seconds as f64
     } else {
         0.0
     };
@@ -128,7 +154,9 @@ async fn get_system_status(
     let status = SystemStatus {
         uptime_seconds,
         active_connections: pool_stats.active_connections,
-        messages_processed,
+        messages_processed: pool_stats.total_messages_received,
+        messages_sent: pool_stats.total_messages_sent,
+        errors: pool_stats.total_errors,
         messages_per_second,
         memory_usage_bytes,
         active_filters: 0, // TODO: Get from filter engine when available
@@ -208,12 +236,16 @@ async fn list_connections(
     let all_connections = state.connections.read().await;
     let total = all_connections.len();
 
-    // Apply pagination
+    // Apply pagination, overlaying live message counts from the pool.
     let connections: Vec<ConnectionInfo> = all_connections
         .iter()
         .skip(query.offset)
         .take(query.limit)
         .cloned()
+        .map(|mut c| {
+            overlay_live_counts(&state.pool, &mut c);
+            c
+        })
         .collect();
 
     Ok(Json(ConnectionList { total, connections }))
@@ -249,7 +281,44 @@ async fn get_connection(
         .cloned()
         .ok_or_else(|| ApiError::NotFound(format!("Connection {} not found", id)))?;
 
+    let mut connection = connection;
+    overlay_live_counts(&state.pool, &mut connection);
+
     Ok(Json(connection))
+}
+
+/// Overlay live message counters from the pool onto a ConnectionInfo so the UI
+/// shows real RX/TX instead of the static zeros captured at creation time.
+fn overlay_live_counts(pool: &ConnectionPool, conn: &mut ConnectionInfo) {
+    use std::sync::atomic::Ordering;
+    if let Some(c) = pool.get_connection(&conn.id.to_string()) {
+        conn.messages_received = c.state.messages_received.load(Ordering::Relaxed);
+        conn.messages_sent = c.state.messages_sent.load(Ordering::Relaxed);
+    }
+}
+
+/// Update the tracked status of a connection in the shared connections list.
+/// Called from the client task so the UI reflects the live socket state.
+async fn set_connection_status(
+    connections: &Arc<RwLock<Vec<ConnectionInfo>>>,
+    id: Uuid,
+    status: ConnectionStatus,
+    error: Option<String>,
+) {
+    let mut conns = connections.write().await;
+    if let Some(conn) = conns.iter_mut().find(|c| c.id == id) {
+        conn.status = status;
+        match status {
+            ConnectionStatus::Connected => {
+                conn.connected_at = Some(Utc::now());
+                conn.error = None;
+            }
+            ConnectionStatus::Error => {
+                conn.error = error;
+            }
+            _ => {}
+        }
+    }
 }
 
 /// POST /api/v1/connections - Create new connection
@@ -347,120 +416,197 @@ async fn create_connection(
                 nagle: false,
             };
 
-            let mut client = TcpClient::new(config);
+            // Capture handles for status sync + reconnect supervision.
+            let status_conns = Arc::clone(&state.connections);
+            let status_id = connection_id;
+            let task_pool_tx = pool_tx;
+            let task_pool_rx = pool_rx;
 
-            // Spawn client task
+            // Spawn supervising client task with a reconnect loop, so a dropped
+            // connection is re-established when auto_reconnect is enabled.
             tokio::spawn(async move {
-                info!(id = %id_clone, "Connecting TCP client");
+                let reconnect_delay = Duration::from_secs(5);
+                loop {
+                    set_connection_status(
+                        &status_conns,
+                        status_id,
+                        ConnectionStatus::Connecting,
+                        None,
+                    )
+                    .await;
 
-                if let Err(e) = client.connect_only().await {
-                    error!(id = %id_clone, error = %e, "Failed to connect TCP client");
-                    return;
-                }
+                    let mut client = TcpClient::new(config.clone());
+                    info!(id = %id_clone, "Connecting TCP client");
 
-                info!(id = %id_clone, address = %address_clone, "TCP client connected");
+                    if let Err(e) = client.connect_only().await {
+                        error!(id = %id_clone, error = %e, "Failed to connect TCP client");
+                        set_connection_status(
+                            &status_conns,
+                            status_id,
+                            ConnectionStatus::Error,
+                            Some(e.to_string()),
+                        )
+                        .await;
+                    } else {
+                        info!(id = %id_clone, address = %address_clone, "TCP client connected");
+                        set_connection_status(
+                            &status_conns,
+                            status_id,
+                            ConnectionStatus::Connected,
+                            None,
+                        )
+                        .await;
 
-                let client_arc = Arc::new(tokio::sync::Mutex::new(client));
-                let client_read = Arc::clone(&client_arc);
-                let client_write = Arc::clone(&client_arc);
+                        let client_arc = Arc::new(tokio::sync::Mutex::new(client));
+                        let client_read = Arc::clone(&client_arc);
+                        let client_write = Arc::clone(&client_arc);
 
-                let id_read = id_clone.clone();
-                let id_write = id_clone.clone();
+                        let id_read = id_clone.clone();
+                        let id_write = id_clone.clone();
+                        let pool_tx = task_pool_tx.clone();
+                        let pool_rx = task_pool_rx.clone();
 
-                // Read task (TAK server → Pool)
-                let read_task = tokio::spawn(async move {
-                    let mut buffer = BytesMut::with_capacity(8192);
+                        // Read task (TAK server → Pool)
+                        let read_task = tokio::spawn(async move {
+                            let mut buffer = BytesMut::with_capacity(8192);
 
-                    loop {
-                        let result = {
-                            let mut client = client_read.lock().await;
+                            loop {
+                                let result = {
+                                    let mut client = client_read.lock().await;
 
-                            // Clone immutable data first (ConnectionStatus is cheap to clone)
-                            let status = client.status().clone();
-                            let framing = client.framing();
+                                    // Clone immutable data first (ConnectionStatus is cheap to clone)
+                                    let status = client.status().clone();
+                                    let framing = client.framing();
 
-                            // Then get mutable reference to stream
-                            let stream = match client.stream_mut() {
-                                Some(s) => s,
-                                None => {
-                                    error!(id = %id_read, "Stream not available");
-                                    break;
+                                    // Then get mutable reference to stream
+                                    let stream = match client.stream_mut() {
+                                        Some(s) => s,
+                                        None => {
+                                            error!(id = %id_read, "Stream not available");
+                                            break;
+                                        }
+                                    };
+
+                                    TcpClient::read_frame_static(
+                                        stream,
+                                        &mut buffer,
+                                        &status,
+                                        framing,
+                                    )
+                                    .await
+                                };
+
+                                match result {
+                                    Ok(Some(frame)) => {
+                                        info!(id = %id_read, bytes = frame.len(), "Received CoT message");
+                                        if let Err(e) = pool_tx
+                                            .send_async(PoolMessage::Cot(frame.to_vec()))
+                                            .await
+                                        {
+                                            error!(id = %id_read, error = %e, "Failed to send to pool");
+                                            break;
+                                        }
+                                    }
+                                    Ok(None) => {
+                                        info!(id = %id_read, "Connection closed by remote");
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        error!(id = %id_read, error = %e, "Error reading from TAK server");
+                                        break;
+                                    }
                                 }
-                            };
+                            }
+                            info!(id = %id_read, "TCP read task terminated");
+                        });
 
-                            TcpClient::read_frame_static(stream, &mut buffer, &status, framing)
-                                .await
-                        };
-
-                        match result {
-                            Ok(Some(frame)) => {
-                                info!(id = %id_read, bytes = frame.len(), "Received CoT message");
-                                if let Err(e) =
-                                    pool_tx.send_async(PoolMessage::Cot(frame.to_vec())).await
-                                {
-                                    error!(id = %id_read, error = %e, "Failed to send to pool");
-                                    break;
+                        // Write task (Pool → TAK server)
+                        let write_task = tokio::spawn(async move {
+                            loop {
+                                match pool_rx.recv_async().await {
+                                    Ok(PoolMessage::Cot(data)) => {
+                                        let mut client = client_write.lock().await;
+                                        if let Err(e) = client.write_frame_direct(&data).await {
+                                            error!(id = %id_write, error = %e, "Failed to send to TAK server");
+                                            break;
+                                        }
+                                    }
+                                    Ok(PoolMessage::Shutdown) => {
+                                        info!(id = %id_write, "Shutdown signal received");
+                                        break;
+                                    }
+                                    Ok(PoolMessage::Ping) => continue,
+                                    Err(e) => {
+                                        error!(id = %id_write, error = %e, "Pool channel error");
+                                        break;
+                                    }
                                 }
                             }
-                            Ok(None) => {
-                                info!(id = %id_read, "Connection closed by remote");
-                                break;
-                            }
-                            Err(e) => {
-                                error!(id = %id_read, error = %e, "Error reading from TAK server");
-                                break;
-                            }
+                            info!(id = %id_write, "TCP write task terminated");
+                        });
+
+                        tokio::select! {
+                            _ = read_task => {}
+                            _ = write_task => {}
                         }
-                    }
-                    info!(id = %id_read, "TCP read task terminated");
-                });
 
-                // Write task (Pool → TAK server)
-                let write_task = tokio::spawn(async move {
-                    loop {
-                        match pool_rx.recv_async().await {
-                            Ok(PoolMessage::Cot(data)) => {
-                                let mut client = client_write.lock().await;
-                                if let Err(e) = client.write_frame_direct(&data).await {
-                                    error!(id = %id_write, error = %e, "Failed to send to TAK server");
-                                    break;
-                                }
-                            }
-                            Ok(PoolMessage::Shutdown) => {
-                                info!(id = %id_write, "Shutdown signal received");
-                                break;
-                            }
-                            Ok(PoolMessage::Ping) => continue,
-                            Err(e) => {
-                                error!(id = %id_write, error = %e, "Pool channel error");
-                                break;
-                            }
-                        }
+                        // The socket closed (remote hang-up, idle timeout, or error).
+                        info!(id = %id_clone, "TCP client disconnected");
+                        set_connection_status(
+                            &status_conns,
+                            status_id,
+                            ConnectionStatus::Disconnected,
+                            None,
+                        )
+                        .await;
                     }
-                    info!(id = %id_write, "TCP write task terminated");
-                });
 
-                tokio::select! {
-                    _ = read_task => {}
-                    _ = write_task => {}
+                    if !auto_reconnect {
+                        break;
+                    }
+                    tokio::time::sleep(reconnect_delay).await;
                 }
+                info!(id = %id_clone, "TCP client supervisor task ended");
             });
         }
         ConnectionType::TlsClient => {
             info!(id = %connection_id, "Creating TLS client");
 
-            // Validate TLS cert paths are provided
-            let cert_path = request.tls_cert_path.clone().ok_or_else(|| {
-                ApiError::BadRequest("TLS certificate path required for TLS connection".to_string())
-            })?;
-            let key_path = request.tls_key_path.clone().ok_or_else(|| {
-                ApiError::BadRequest("TLS key path required for TLS connection".to_string())
-            })?;
-
-            let mut client_config = TlsClientConfig::new(
-                std::path::PathBuf::from(cert_path),
-                std::path::PathBuf::from(key_path),
-            );
+            // Build the TLS config: prefer inline cert material uploaded from the
+            // browser (base64 PEM or PKCS#12), else fall back to server-side paths.
+            let mut client_config = if let Some(cert_b64) = request.tls_client_cert_pem_b64.clone()
+            {
+                let mk = |data: String, name: &str| omnitak_cert::CertificateData {
+                    name: name.to_string(),
+                    size: data.len() as u64,
+                    data,
+                };
+                let cert_data = mk(cert_b64, "client-cert");
+                let key_data = request
+                    .tls_client_key_pem_b64
+                    .clone()
+                    .map(|k| mk(k, "client-key"));
+                let ca_data = request
+                    .tls_ca_cert_pem_b64
+                    .clone()
+                    .map(|c| mk(c, "ca-cert"));
+                TlsClientConfig::from_memory(cert_data, key_data, ca_data, None)
+            } else {
+                let cert_path = request.tls_cert_path.clone().ok_or_else(|| {
+                    ApiError::BadRequest(
+                        "TLS requires an uploaded client certificate or tls_cert_path".to_string(),
+                    )
+                })?;
+                let key_path = request.tls_key_path.clone().ok_or_else(|| {
+                    ApiError::BadRequest(
+                        "TLS requires an uploaded client key or tls_key_path".to_string(),
+                    )
+                })?;
+                TlsClientConfig::new(
+                    std::path::PathBuf::from(cert_path),
+                    std::path::PathBuf::from(key_path),
+                )
+            };
             client_config.base.server_addr = address_with_port.clone();
             client_config.base.connect_timeout = Duration::from_secs(10);
             client_config.base.read_timeout = Duration::from_secs(30);
@@ -475,107 +621,174 @@ async fn create_connection(
             };
             client_config.verify_server = request.validate_certs;
 
-            let mut client = TlsClient::new(client_config).map_err(|e| {
-                ApiError::InternalError(format!("Failed to create TLS client: {}", e))
+            // Validate cert material up front so a bad upload returns an error now.
+            TlsClient::new(client_config.clone()).map_err(|e| {
+                ApiError::BadRequest(format!("Invalid TLS certificate material: {}", e))
             })?;
 
-            // Spawn client task (similar pattern to TCP)
+            // Capture handles for status sync + reconnect supervision.
+            let status_conns = Arc::clone(&state.connections);
+            let status_id = connection_id;
+            let task_pool_tx = pool_tx;
+            let task_pool_rx = pool_rx;
+
             tokio::spawn(async move {
-                info!(id = %id_clone, "Connecting TLS client");
+                let reconnect_delay = Duration::from_secs(5);
+                loop {
+                    set_connection_status(
+                        &status_conns,
+                        status_id,
+                        ConnectionStatus::Connecting,
+                        None,
+                    )
+                    .await;
 
-                if let Err(e) = client.connect_only().await {
-                    error!(id = %id_clone, error = %e, "Failed to connect TLS client");
-                    return;
-                }
-
-                info!(id = %id_clone, address = %address_clone, "TLS client connected");
-
-                let client_arc = Arc::new(tokio::sync::Mutex::new(client));
-                let client_read = Arc::clone(&client_arc);
-                let client_write = Arc::clone(&client_arc);
-
-                let id_read = id_clone.clone();
-                let id_write = id_clone.clone();
-
-                // Read task (TAK server → Pool)
-                let read_task = tokio::spawn(async move {
-                    use omnitak_client::tls::TlsClient;
-
-                    let mut buffer = BytesMut::with_capacity(8192);
-
-                    loop {
-                        let result = {
-                            let mut client = client_read.lock().await;
-
-                            // Clone immutable data first (ConnectionStatus is cheap to clone)
-                            let status = client.status().clone();
-                            let framing = client.framing();
-
-                            // Then get mutable reference to stream
-                            let stream = match client.stream_mut() {
-                                Some(s) => s,
-                                None => {
-                                    error!(id = %id_read, "Stream not available");
-                                    break;
-                                }
-                            };
-
-                            TlsClient::read_frame_static(stream, &mut buffer, &status, framing)
-                                .await
-                        };
-
-                        match result {
-                            Ok(Some(frame)) => {
-                                info!(id = %id_read, bytes = frame.len(), "Received CoT message (TLS)");
-                                if let Err(e) =
-                                    pool_tx.send_async(PoolMessage::Cot(frame.to_vec())).await
-                                {
-                                    error!(id = %id_read, error = %e, "Failed to send to pool");
-                                    break;
-                                }
-                            }
-                            Ok(None) => {
-                                info!(id = %id_read, "Connection closed by remote");
-                                break;
-                            }
-                            Err(e) => {
-                                error!(id = %id_read, error = %e, "Error reading from TLS TAK server");
-                                break;
-                            }
+                    let mut client = match TlsClient::new(client_config.clone()) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            error!(id = %id_clone, error = %e, "Failed to create TLS client");
+                            set_connection_status(
+                                &status_conns,
+                                status_id,
+                                ConnectionStatus::Error,
+                                Some(e.to_string()),
+                            )
+                            .await;
+                            break;
                         }
-                    }
-                    info!(id = %id_read, "TLS read task terminated");
-                });
+                    };
+                    info!(id = %id_clone, "Connecting TLS client");
 
-                // Write task (Pool → TAK server)
-                let write_task = tokio::spawn(async move {
-                    loop {
-                        match pool_rx.recv_async().await {
-                            Ok(PoolMessage::Cot(data)) => {
-                                let mut client = client_write.lock().await;
-                                if let Err(e) = client.write_frame_direct(&data).await {
-                                    error!(id = %id_write, error = %e, "Failed to send to TLS TAK server");
-                                    break;
+                    if let Err(e) = client.connect_only().await {
+                        error!(id = %id_clone, error = %e, "Failed to connect TLS client");
+                        set_connection_status(
+                            &status_conns,
+                            status_id,
+                            ConnectionStatus::Error,
+                            Some(e.to_string()),
+                        )
+                        .await;
+                    } else {
+                        info!(id = %id_clone, address = %address_clone, "TLS client connected");
+                        set_connection_status(
+                            &status_conns,
+                            status_id,
+                            ConnectionStatus::Connected,
+                            None,
+                        )
+                        .await;
+
+                        let client_arc = Arc::new(tokio::sync::Mutex::new(client));
+                        let client_read = Arc::clone(&client_arc);
+                        let client_write = Arc::clone(&client_arc);
+
+                        let id_read = id_clone.clone();
+                        let id_write = id_clone.clone();
+                        let pool_tx = task_pool_tx.clone();
+                        let pool_rx = task_pool_rx.clone();
+
+                        // Read task (TAK server → Pool)
+                        let read_task = tokio::spawn(async move {
+                            use omnitak_client::tls::TlsClient;
+
+                            let mut buffer = BytesMut::with_capacity(8192);
+
+                            loop {
+                                let result = {
+                                    let mut client = client_read.lock().await;
+
+                                    // Clone immutable data first (ConnectionStatus is cheap to clone)
+                                    let status = client.status().clone();
+                                    let framing = client.framing();
+
+                                    // Then get mutable reference to stream
+                                    let stream = match client.stream_mut() {
+                                        Some(s) => s,
+                                        None => {
+                                            error!(id = %id_read, "Stream not available");
+                                            break;
+                                        }
+                                    };
+
+                                    TlsClient::read_frame_static(
+                                        stream,
+                                        &mut buffer,
+                                        &status,
+                                        framing,
+                                    )
+                                    .await
+                                };
+
+                                match result {
+                                    Ok(Some(frame)) => {
+                                        info!(id = %id_read, bytes = frame.len(), "Received CoT message (TLS)");
+                                        if let Err(e) = pool_tx
+                                            .send_async(PoolMessage::Cot(frame.to_vec()))
+                                            .await
+                                        {
+                                            error!(id = %id_read, error = %e, "Failed to send to pool");
+                                            break;
+                                        }
+                                    }
+                                    Ok(None) => {
+                                        info!(id = %id_read, "Connection closed by remote");
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        error!(id = %id_read, error = %e, "Error reading from TLS TAK server");
+                                        break;
+                                    }
                                 }
                             }
-                            Ok(PoolMessage::Shutdown) => {
-                                info!(id = %id_write, "Shutdown signal received");
-                                break;
-                            }
-                            Ok(PoolMessage::Ping) => continue,
-                            Err(e) => {
-                                error!(id = %id_write, error = %e, "Pool channel error");
-                                break;
-                            }
-                        }
-                    }
-                    info!(id = %id_write, "TLS write task terminated");
-                });
+                            info!(id = %id_read, "TLS read task terminated");
+                        });
 
-                tokio::select! {
-                    _ = read_task => {}
-                    _ = write_task => {}
+                        // Write task (Pool → TAK server)
+                        let write_task = tokio::spawn(async move {
+                            loop {
+                                match pool_rx.recv_async().await {
+                                    Ok(PoolMessage::Cot(data)) => {
+                                        let mut client = client_write.lock().await;
+                                        if let Err(e) = client.write_frame_direct(&data).await {
+                                            error!(id = %id_write, error = %e, "Failed to send to TLS TAK server");
+                                            break;
+                                        }
+                                    }
+                                    Ok(PoolMessage::Shutdown) => {
+                                        info!(id = %id_write, "Shutdown signal received");
+                                        break;
+                                    }
+                                    Ok(PoolMessage::Ping) => continue,
+                                    Err(e) => {
+                                        error!(id = %id_write, error = %e, "Pool channel error");
+                                        break;
+                                    }
+                                }
+                            }
+                            info!(id = %id_write, "TLS write task terminated");
+                        });
+
+                        tokio::select! {
+                            _ = read_task => {}
+                            _ = write_task => {}
+                        }
+
+                        info!(id = %id_clone, "TLS client disconnected");
+                        set_connection_status(
+                            &status_conns,
+                            status_id,
+                            ConnectionStatus::Disconnected,
+                            None,
+                        )
+                        .await;
+                    }
+
+                    if !auto_reconnect {
+                        break;
+                    }
+                    tokio::time::sleep(reconnect_delay).await;
                 }
+                info!(id = %id_clone, "TLS client supervisor task ended");
             });
         }
         _ => {
@@ -689,6 +902,82 @@ async fn delete_connection(
     Ok(Json(DeleteConnectionResponse {
         message: "Connection deleted successfully".to_string(),
     }))
+}
+
+/// POST /api/v1/connections/:id/reconnect - Request a reconnect for a connection
+async fn reconnect_connection(
+    State(state): State<ApiState>,
+    Path(id): Path<Uuid>,
+    RequireOperator(user): RequireOperator,
+    ConnectInfo(client_addr): ConnectInfo<SocketAddr>,
+) -> Result<Json<ReconnectResponse>, ApiError> {
+    info!(connection_id = %id, "Reconnect requested");
+
+    // Flip the tracked status to Connecting; the pool's health monitor drives the
+    // actual reconnect on its next cycle for connections with auto-reconnect enabled.
+    let mut connections = state.connections.write().await;
+    let conn = connections
+        .iter_mut()
+        .find(|c| c.id == id)
+        .ok_or_else(|| ApiError::NotFound(format!("Connection {} not found", id)))?;
+    conn.status = ConnectionStatus::Connecting;
+    conn.error = None;
+    drop(connections);
+
+    state.audit_logger.log(
+        user.user_id.unwrap_or_else(|| "api_key".to_string()),
+        user.role,
+        "reconnect_connection".to_string(),
+        format!("/api/v1/connections/{}/reconnect", id),
+        serde_json::json!({ "connection_id": id }),
+        client_addr.ip().to_string(),
+        true,
+    );
+
+    Ok(Json(ReconnectResponse {
+        id,
+        status: ConnectionStatus::Connecting,
+        message: "Reconnect requested".to_string(),
+    }))
+}
+
+/// POST /api/v1/test-connection - Probe TCP reachability of a host:port
+async fn test_connection(
+    _user: AuthUser,
+    Json(request): Json<TestConnectionRequest>,
+) -> Result<Json<TestConnectionResponse>, ApiError> {
+    let address = request.address.trim().to_string();
+    if address.is_empty() {
+        return Err(ApiError::BadRequest("address is required".to_string()));
+    }
+
+    info!(address = %address, "Testing connection reachability");
+
+    let start = std::time::Instant::now();
+    let probe = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::net::TcpStream::connect(&address),
+    )
+    .await;
+
+    match probe {
+        Ok(Ok(_stream)) => {
+            let latency = start.elapsed().as_millis() as u64;
+            Ok(Json(TestConnectionResponse {
+                success: true,
+                latency,
+                message: format!("Reachable at {}", address),
+            }))
+        }
+        Ok(Err(e)) => Err(ApiError::BadRequest(format!(
+            "Could not connect to {}: {}",
+            address, e
+        ))),
+        Err(_) => Err(ApiError::BadRequest(format!(
+            "Connection to {} timed out after 5s",
+            address
+        ))),
+    }
 }
 
 // ============================================================================

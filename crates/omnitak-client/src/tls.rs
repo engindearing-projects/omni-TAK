@@ -309,14 +309,43 @@ impl TlsClient {
                     .decode(&cert_data.data)
                     .context("Failed to decode certificate from base64")?;
 
-                let key_bytes = key_data.as_ref()
-                    .ok_or_else(|| anyhow!("Key data required for memory source"))?;
-                let key_bytes = base64::engine::general_purpose::STANDARD
-                    .decode(&key_bytes.data)
-                    .context("Failed to decode key from base64")?;
+                // With a separate key, treat the upload as PEM cert + PKCS#8 key.
+                // Without one, treat the cert blob as a PKCS#12 bundle (cert + key
+                // together) and try the supplied password plus common TAK defaults.
+                let identity = match key_data.as_ref() {
+                    Some(kd) => {
+                        let key_bytes = base64::engine::general_purpose::STANDARD
+                            .decode(&kd.data)
+                            .context("Failed to decode key from base64")?;
+                        Identity::from_pkcs8(&cert_bytes, &key_bytes)
+                            .context("Failed to create identity from PEM cert/key")?
+                    }
+                    None => {
+                        let mut passwords: Vec<&str> = Vec::new();
+                        if let Some(p) = password.as_deref() {
+                            passwords.push(p);
+                        }
+                        passwords.extend(["omnitak", "", "changeit", "atakatak"]);
 
-                let identity = Identity::from_pkcs8(&cert_bytes, &key_bytes)
-                    .context("Failed to create identity from memory")?;
+                        let mut identity = None;
+                        let mut last_err = None;
+                        for p in passwords {
+                            match Identity::from_pkcs12(&cert_bytes, p) {
+                                Ok(id) => {
+                                    identity = Some(id);
+                                    break;
+                                }
+                                Err(e) => last_err = Some(e),
+                            }
+                        }
+                        identity.ok_or_else(|| {
+                            anyhow!(
+                                "Failed to load PKCS#12 identity from upload (no separate key; tried supplied password + 'omnitak'/empty/'changeit'/'atakatak'): {}",
+                                last_err.map(|e| e.to_string()).unwrap_or_default()
+                            )
+                        })?
+                    }
+                };
                 builder.identity(identity);
 
                 // Load CA if provided AND if we're verifying certs

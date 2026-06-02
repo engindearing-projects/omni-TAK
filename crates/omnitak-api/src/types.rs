@@ -58,8 +58,16 @@ pub struct SystemStatus {
     /// Total number of active connections
     pub active_connections: usize,
 
-    /// Total messages processed
+    /// Total messages received from TAK servers
     pub messages_processed: u64,
+
+    /// Total messages sent to TAK servers
+    #[serde(default)]
+    pub messages_sent: u64,
+
+    /// Total connection errors
+    #[serde(default)]
+    pub errors: u64,
 
     /// Messages per second (last minute)
     pub messages_per_second: f64,
@@ -158,6 +166,19 @@ pub struct CreateConnectionRequest {
     #[validate(length(max = 500))]
     pub tls_key_path: Option<String>,
 
+    /// Inline PEM client certificate (base64 of the PEM file), uploaded from the browser.
+    /// When present, persisted server-side and used instead of tls_cert_path.
+    #[serde(default)]
+    pub tls_client_cert_pem_b64: Option<String>,
+
+    /// Inline PEM client private key (base64 of the PEM file).
+    #[serde(default)]
+    pub tls_client_key_pem_b64: Option<String>,
+
+    /// Inline PEM CA certificate (base64 of the PEM file).
+    #[serde(default)]
+    pub tls_ca_cert_pem_b64: Option<String>,
+
     /// Validate TLS certificates
     #[serde(default = "default_validate_certs")]
     pub validate_certs: bool,
@@ -179,6 +200,31 @@ pub struct CreateConnectionResponse {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct DeleteConnectionResponse {
+    pub message: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct TestConnectionRequest {
+    /// Target address as "host:port"
+    pub address: String,
+
+    /// Optional protocol hint (tcp/tls); informational only for the reachability probe
+    #[serde(default)]
+    pub protocol: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TestConnectionResponse {
+    pub success: bool,
+    /// Round-trip time of the TCP connect, in milliseconds
+    pub latency: u64,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ReconnectResponse {
+    pub id: Uuid,
+    pub status: ConnectionStatus,
     pub message: String,
 }
 

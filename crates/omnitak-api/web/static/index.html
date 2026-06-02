@@ -3,142 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omnicot API</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #fff;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .container {
-            max-width: 800px;
-            text-align: center;
-        }
-        h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        .subtitle {
-            font-size: 1.5rem;
-            margin-bottom: 2rem;
-            opacity: 0.9;
-        }
-        .links {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .btn {
-            padding: 12px 24px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.4);
-            border-radius: 8px;
-            color: #fff;
-            text-decoration: none;
-            font-size: 1rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.6);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-        .features {
-            margin-top: 3rem;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-        }
-        .feature {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 1.5rem;
-            border-radius: 8px;
-            backdrop-filter: blur(10px);
-        }
-        .feature h3 {
-            margin-bottom: 0.5rem;
-            font-size: 1.2rem;
-        }
-        .feature p {
-            opacity: 0.9;
-            font-size: 0.9rem;
-        }
-        .status {
-            margin-top: 2rem;
-            padding: 1rem;
-            background: rgba(0, 255, 0, 0.1);
-            border: 1px solid rgba(0, 255, 0, 0.3);
-            border-radius: 8px;
-        }
-        .status span {
-            color: #4ade80;
-            font-weight: bold;
-        }
-    </style>
+    <title>OmniTAK - TAK Server Manager</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Omnicot API</h1>
-        <p class="subtitle">TAK Aggregator REST API & WebSocket Interface</p>
+    <!-- Icon sprite -->
+    <svg class="svg-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <symbol id="logo" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/>
+            <path d="M7.6 7.6a6.2 6.2 0 0 0 0 8.8M16.4 7.6a6.2 6.2 0 0 1 0 8.8"/>
+            <path d="M4.6 4.6a10.4 10.4 0 0 0 0 14.8M19.4 4.6a10.4 10.4 0 0 1 0 14.8" opacity="0.45"/>
+        </symbol>
+        <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+        <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4"/><path d="M10.3 12.7 20 3"/><path d="m17 6 2.5 2.5M14.5 8.5 17 11"/></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6z"/></symbol>
+        <symbol id="i-server" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M7.5 7.5h.01M7.5 16.5h.01"/></symbol>
+        <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></symbol>
+        <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 20V9"/><path d="m7 13 5-5 5 5"/><path d="M5 4h14"/></symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="m6 7 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></symbol>
+        <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+        <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></symbol>
+    </svg>
 
-        <div class="links">
-            <a href="/api-docs.html" class="btn">API Documentation</a>
-            <a href="/rapidoc.html" class="btn">API Docs (RapiDoc)</a>
-            <a href="/redoc.html" class="btn">API Docs (Redoc)</a>
-            <a href="/api/v1/status" class="btn">System Status</a>
-            <a href="/health" class="btn">Health Check</a>
-        </div>
-
-        <div class="features">
-            <div class="feature">
-                <h3>REST API</h3>
-                <p>Manage connections, filters, and system configuration via RESTful endpoints</p>
+    <!-- Login overlay -->
+    <div id="login-overlay" class="login-overlay">
+        <form id="login-form" class="login-card">
+            <div class="brand"><svg class="logo"><use href="#logo"/></svg><h1>OmniTAK</h1></div>
+            <p class="subtitle">Sign in to the TAK Server Aggregator</p>
+            <div class="form-group">
+                <label for="login-username">Username</label>
+                <input type="text" id="login-username" value="admin" autocomplete="username" required>
             </div>
-            <div class="feature">
-                <h3>WebSocket Streaming</h3>
-                <p>Real-time CoT message streaming with filtering and event notifications</p>
+            <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" autocomplete="current-password" placeholder="Enter password..." required>
             </div>
-            <div class="feature">
-                <h3>Authentication</h3>
-                <p>JWT tokens and API keys with role-based access control</p>
-            </div>
-            <div class="feature">
-                <h3>Metrics</h3>
-                <p>Prometheus-compatible metrics for monitoring and observability</p>
-            </div>
-        </div>
-
-        <div class="status">
-            <span>●</span> Server is running and ready to accept connections
-        </div>
+            <div id="login-error" class="login-error"></div>
+            <button type="submit" class="btn btn-primary">Sign In</button>
+        </form>
     </div>
 
-    <script>
-        // Check server health
-        fetch('/health')
-            .then(res => res.json())
-            .then(data => {
-                console.log('Health check:', data);
-            })
-            .catch(err => {
-                console.error('Health check failed:', err);
-            });
-    </script>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <svg class="logo"><use href="#logo"/></svg>
+                <div>
+                    <h1>OmniTAK</h1>
+                    <p class="subtitle">TAK Server Aggregator &amp; Client</p>
+                </div>
+            </div>
+            <button id="logout-btn" class="logout-btn" title="Sign out"><svg class="icon"><use href="#i-logout"/></svg>Sign out</button>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-label">System Status:</span>
+                    <span id="system-status" class="status-value offline">Offline</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Active Connections:</span>
+                    <span id="active-connections" class="status-value">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Messages:</span>
+                    <span id="message-count" class="status-value">0</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Add Connection Section -->
+            <section class="card">
+                <h2>Add TAK Server Connection</h2>
+                <form id="connection-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="connection-name">Connection Name *</label>
+                            <input type="text" id="connection-name" placeholder="e.g., Primary TAK Server" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="server-host">Server Host *</label>
+                            <input type="text" id="server-host" placeholder="e.g., 192.168.1.100 or public.opentakserver.io" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="server-port">Port *</label>
+                            <input type="number" id="server-port" placeholder="8087" min="1" max="65535" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="protocol">Protocol *</label>
+                            <select id="protocol" required>
+                                <option value="tcp">TCP</option>
+                                <option value="tls">TLS (Secure)</option>
+                                <option value="udp">UDP</option>
+                                <option value="websocket">WebSocket</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="priority">Priority</label>
+                            <input type="number" id="priority" value="5" min="1" max="10">
+                            <small>1 = Low, 10 = High</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="auto-reconnect">Auto-Reconnect</label>
+                            <label class="switch">
+                                <input type="checkbox" id="auto-reconnect" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- TLS/Certificate Section (shown when TLS is selected) -->
+                    <div id="tls-section" class="tls-section" style="display: none;">
+                        <h3>TLS Configuration</h3>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="client-cert">Client Certificate (.p12, .pem, .crt)</label>
+                                <div class="file-upload">
+                                    <input type="file" id="client-cert" accept=".p12,.pem,.crt,.cer">
+                                    <label for="client-cert" class="file-label">
+                                        <svg class="file-icon icon"><use href="#i-file"/></svg>
+                                        <span id="client-cert-name">Choose file...</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="client-key">Client Private Key (.key, .pem)</label>
+                                <div class="file-upload">
+                                    <input type="file" id="client-key" accept=".key,.pem">
+                                    <label for="client-key" class="file-label">
+                                        <svg class="file-icon icon"><use href="#i-key"/></svg>
+                                        <span id="client-key-name">Choose file...</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="ca-cert">CA Certificate (.pem, .crt)</label>
+                                <div class="file-upload">
+                                    <input type="file" id="ca-cert" accept=".pem,.crt,.cer">
+                                    <label for="ca-cert" class="file-label">
+                                        <svg class="file-icon icon"><use href="#i-shield"/></svg>
+                                        <span id="ca-cert-name">Choose file...</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="cert-password">Certificate Password (if encrypted)</label>
+                                <input type="password" id="cert-password" placeholder="Enter password...">
+                                <small>Leave blank if certificate is not password-protected</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="verify-hostname">Verify Hostname</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="verify-hostname" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="tls-version">Minimum TLS Version</label>
+                                <select id="tls-version">
+                                    <option value="1.2">TLS 1.2</option>
+                                    <option value="1.3" selected>TLS 1.3</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Options -->
+                    <details class="advanced-options">
+                        <summary>Advanced Options</summary>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="connect-timeout">Connection Timeout (seconds)</label>
+                                <input type="number" id="connect-timeout" value="10" min="1" max="60">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="read-timeout">Read Timeout (seconds)</label>
+                                <input type="number" id="read-timeout" value="30" min="1" max="300">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="retry-attempts">Max Retry Attempts</label>
+                                <input type="number" id="retry-attempts" value="3" min="0" max="10">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="buffer-size">Buffer Size (KB)</label>
+                                <input type="number" id="buffer-size" value="64" min="8" max="1024">
+                            </div>
+                        </div>
+                    </details>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary"><svg class="icon"><use href="#i-plus"/></svg>Add Connection</button>
+                        <button type="button" class="btn btn-secondary" id="test-connection"><svg class="icon"><use href="#i-activity"/></svg>Test Connection</button>
+                        <button type="reset" class="btn btn-secondary">Reset</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Active Connections Section -->
+            <section class="card">
+                <h2>Active Connections</h2>
+                <div id="connections-list" class="connections-list">
+                    <div class="empty-state">
+                        <p>No active connections. Add a TAK server above to get started.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Message Statistics Section -->
+            <section class="card">
+                <h2>Message Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="messages-received">0</div>
+                        <div class="stat-label">Messages Received</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="messages-sent">0</div>
+                        <div class="stat-label">Messages Sent</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="messages-filtered">0</div>
+                        <div class="stat-label">Messages Filtered</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="messages-duplicated">0</div>
+                        <div class="stat-label">Duplicates Detected</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="throughput">0.00/s</div>
+                        <div class="stat-label">Throughput</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="errors">0</div>
+                        <div class="stat-label">Errors</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Messages Section -->
+            <section class="card">
+                <h2>Recent Messages</h2>
+                <div class="messages-controls">
+                    <button class="btn btn-small btn-secondary" id="clear-messages">Clear</button>
+                    <label class="switch">
+                        <input type="checkbox" id="auto-scroll" checked>
+                        <span class="slider"></span>
+                        <span class="switch-label">Auto-scroll</span>
+                    </label>
+                </div>
+                <div id="messages-log" class="messages-log">
+                    <div class="empty-state">
+                        <p>No messages yet. Messages will appear here when connections are active.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>OmniTAK v0.1.0 | Built with Rust |
+                <a href="https://github.com/engindearing-projects/omniTAK" target="_blank">GitHub</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script src="js/app.js"></script>
 </body>
 </html>

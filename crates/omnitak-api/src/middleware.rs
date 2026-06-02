@@ -173,8 +173,18 @@ pub async fn rate_limit_middleware(
 // ============================================================================
 
 pub async fn security_headers_middleware(request: Request, next: Next) -> Response {
+    let is_api = request.uri().path().starts_with("/api/");
     let mut response = next.run(request).await;
     let headers = response.headers_mut();
+
+    // Never cache API responses — the dashboard polls live status/connection state.
+    // (Static assets keep their own cache headers.)
+    if is_api {
+        headers.insert(
+            "Cache-Control",
+            HeaderValue::from_static("no-store, no-cache, must-revalidate"),
+        );
+    }
 
     // Prevent MIME type sniffing
     headers.insert(

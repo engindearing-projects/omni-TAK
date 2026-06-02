@@ -1,0 +1,17 @@
+# OmniTAK — Docker test-mode configuration
+# Binds to all interfaces so the web UI is reachable from the host.
+# This is a quick-sample setup for evaluation, NOT a hardened production config.
+api:
+  # 0.0.0.0 so the container's published port is reachable from your browser.
+  bind_addr: "0.0.0.0:8080"
+  enable_tls: false
+  jwt_expiration: 86400
+  enable_swagger: true
+  # Serves the embedded web management UI at /.
+  enable_static_files: true
+
+# No upstream TAK servers wired by default — add them from the web UI.
+servers: []
+
+logging:
+  level: "info"
