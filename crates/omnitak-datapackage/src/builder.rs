@@ -86,11 +86,7 @@ impl DataPackageBuilder {
     }
 
     /// Add multiple files from a directory
-    pub fn add_directory<P: AsRef<Path>>(
-        mut self,
-        dir_path: P,
-        prefix: &str,
-    ) -> Result<Self> {
+    pub fn add_directory<P: AsRef<Path>>(mut self, dir_path: P, prefix: &str) -> Result<Self> {
         let dir = dir_path.as_ref();
         if !dir.is_dir() {
             return Err(DataPackageError::Io(std::io::Error::new(
@@ -104,9 +100,10 @@ impl DataPackageBuilder {
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())
         {
-            let rel_path = entry.path().strip_prefix(dir).map_err(|_| {
-                DataPackageError::PathTraversal(entry.path().display().to_string())
-            })?;
+            let rel_path = entry
+                .path()
+                .strip_prefix(dir)
+                .map_err(|_| DataPackageError::PathTraversal(entry.path().display().to_string()))?;
 
             let zip_entry = if prefix.is_empty() {
                 rel_path.to_string_lossy().to_string()

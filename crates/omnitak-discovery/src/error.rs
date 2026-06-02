@@ -14,7 +14,10 @@ pub enum DiscoveryError {
 
     /// Failed to browse for services
     #[error("Failed to browse for service type '{service_type}': {reason}")]
-    BrowseFailed { service_type: String, reason: String },
+    BrowseFailed {
+        service_type: String,
+        reason: String,
+    },
 
     /// Failed to register/announce a service
     #[error("Failed to register service '{service_name}': {reason}")]

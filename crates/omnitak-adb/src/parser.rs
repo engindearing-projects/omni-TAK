@@ -70,7 +70,10 @@ pub fn parse_tak_preferences(content: &str) -> HashMap<String, String> {
                 if let Some((host, port)) = parse_server_address(&value) {
                     config.insert("host".to_string(), host);
                     config.insert("port".to_string(), port.to_string());
-                    config.insert("address".to_string(), format!("{}:{}", config["host"], port));
+                    config.insert(
+                        "address".to_string(),
+                        format!("{}:{}", config["host"], port),
+                    );
                 }
             }
         }
@@ -95,10 +98,7 @@ pub fn parse_tak_preferences(content: &str) -> HashMap<String, String> {
 
     // Set default name if not found
     if !config.contains_key("name") {
-        config.insert(
-            "name".to_string(),
-            "tak-server-from-device".to_string(),
-        );
+        config.insert("name".to_string(), "tak-server-from-device".to_string());
     }
 
     config

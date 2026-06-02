@@ -81,11 +81,8 @@ impl PluginManager {
         let hash = Self::calculate_hash(&plugin_bytes);
 
         // Load plugin
-        let plugin = WasmFilterPlugin::from_bytes(
-            self.runtime.clone(),
-            &plugin_bytes,
-            metadata.clone(),
-        )?;
+        let plugin =
+            WasmFilterPlugin::from_bytes(self.runtime.clone(), &plugin_bytes, metadata.clone())?;
         let plugin = Arc::new(plugin);
 
         // Register plugin
@@ -113,7 +110,11 @@ impl PluginManager {
         path: &str,
         metadata: TransformerMetadata,
     ) -> PluginResult<Arc<WasmTransformerPlugin>> {
-        tracing::info!("Loading transformer plugin: {} from {}", metadata.name, path);
+        tracing::info!(
+            "Loading transformer plugin: {} from {}",
+            metadata.name,
+            path
+        );
 
         let plugin_bytes = std::fs::read(path)?;
         let hash = Self::calculate_hash(&plugin_bytes);
@@ -177,7 +178,10 @@ impl PluginManager {
     pub async fn load_all_plugins(&self) -> PluginResult<usize> {
         let plugin_dir = Path::new(&self.config.plugin_dir);
         if !plugin_dir.exists() {
-            tracing::warn!("Plugin directory does not exist: {}", self.config.plugin_dir);
+            tracing::warn!(
+                "Plugin directory does not exist: {}",
+                self.config.plugin_dir
+            );
             return Ok(0);
         }
 

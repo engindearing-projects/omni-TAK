@@ -102,8 +102,14 @@ jobs:
       if: runner.os == 'macOS'
       run: brew install protobuf
 
+    # Linux has no GUI backend (winit); build headless server binaries there.
     - name: Build release binaries
-      run: cargo build --release --target ${{ matrix.target }}
+      run: |
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          cargo build --release --target ${{ matrix.target }} --no-default-features
+        else
+          cargo build --release --target ${{ matrix.target }}
+        fi
 
     - name: Package binaries
       shell: bash
@@ -111,16 +117,18 @@ jobs:
         mkdir -p package
         cd package
 
-        # Copy binaries
+        # Copy binaries (GUI only exists on desktop platforms)
         if [ "${{ runner.os }}" = "Windows" ]; then
           cp ../target/${{ matrix.target }}/release/omnitak.exe .
-          cp ../target/${{ matrix.target }}/release/omnitak-gui.exe .
+          cp ../target/${{ matrix.target }}/release/omnitak-gui.exe . 2>/dev/null || true
           cp ../target/${{ matrix.target }}/release/omnitak-adb-setup.exe .
         else
           cp ../target/${{ matrix.target }}/release/omnitak .
-          cp ../target/${{ matrix.target }}/release/omnitak-gui .
           cp ../target/${{ matrix.target }}/release/omnitak-adb-setup .
-          chmod +x omnitak omnitak-gui omnitak-adb-setup
+          chmod +x omnitak omnitak-adb-setup
+          if cp ../target/${{ matrix.target }}/release/omnitak-gui . 2>/dev/null; then
+            chmod +x omnitak-gui
+          fi
         fi
 
         # Copy documentation

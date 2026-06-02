@@ -8,13 +8,13 @@
 pub mod enrollment;
 pub mod generator;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use base64::prelude::*;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Cursor};
 use std::path::{Path, PathBuf};
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 /// Certificate data that can be stored in memory or loaded from files
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,7 +108,8 @@ impl CertificateBundle {
             .map_err(|e| anyhow!("Failed to parse PKCS#12 file: {}", e))?;
 
         // Decrypt the PKCS#12 with password
-        let bags = p12.bags(password)
+        let bags = p12
+            .bags(password)
             .map_err(|e| anyhow!("Failed to decrypt PKCS#12 with provided password: {}", e))?;
 
         let mut certs: Vec<CertificateDer<'static>> = Vec::new();
@@ -129,8 +130,12 @@ impl CertificateBundle {
                     }
                 }
                 p12::SafeBagKind::Pkcs8ShroudedKeyBag(key_bag) => {
-                    let key_data = key_bag.encryption_algorithm.decrypt_pbe(&key_bag.encrypted_data, password.as_bytes())
-                        .ok_or_else(|| anyhow!("Failed to decrypt private key with provided password"))?;
+                    let key_data = key_bag
+                        .encryption_algorithm
+                        .decrypt_pbe(&key_bag.encrypted_data, password.as_bytes())
+                        .ok_or_else(|| {
+                            anyhow!("Failed to decrypt private key with provided password")
+                        })?;
                     private_key = Some(PrivateKeyDer::Pkcs8(key_data.into()));
                 }
                 _ => {
@@ -143,15 +148,23 @@ impl CertificateBundle {
             return Err(anyhow!("No client certificate found in PKCS#12 file"));
         }
 
-        let private_key = private_key
-            .ok_or_else(|| anyhow!("No private key found in PKCS#12 file"))?;
+        let private_key =
+            private_key.ok_or_else(|| anyhow!("No private key found in PKCS#12 file"))?;
 
-        info!("Loaded {} client cert(s) and {} CA cert(s) from PKCS#12", certs.len(), ca_certs.len());
+        info!(
+            "Loaded {} client cert(s) and {} CA cert(s) from PKCS#12",
+            certs.len(),
+            ca_certs.len()
+        );
 
         Ok(Self {
             certs,
             private_key,
-            ca_certs: if ca_certs.is_empty() { None } else { Some(ca_certs) },
+            ca_certs: if ca_certs.is_empty() {
+                None
+            } else {
+                Some(ca_certs)
+            },
         })
     }
 
@@ -222,23 +235,30 @@ pub struct ExtractedServerInfo {
 }
 
 /// Extract certificates from a ZIP file
-pub fn extract_zip_certificates(zip_path: &Path, output_dir: &Path) -> Result<ExtractedCertificates> {
+pub fn extract_zip_certificates(
+    zip_path: &Path,
+    output_dir: &Path,
+) -> Result<ExtractedCertificates> {
     info!("Extracting certificates from ZIP: {}", zip_path.display());
 
     let file = std::fs::File::open(zip_path)
         .with_context(|| format!("Failed to open ZIP file: {}", zip_path.display()))?;
 
-    let mut archive = zip::ZipArchive::new(file)
-        .context("Failed to read ZIP archive")?;
+    let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
 
-    std::fs::create_dir_all(output_dir)
-        .with_context(|| format!("Failed to create output directory: {}", output_dir.display()))?;
+    std::fs::create_dir_all(output_dir).with_context(|| {
+        format!(
+            "Failed to create output directory: {}",
+            output_dir.display()
+        )
+    })?;
 
     let mut extracted_files = Vec::new();
 
     // Extract all files
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
+        let mut file = archive
+            .by_index(i)
             .with_context(|| format!("Failed to read file at index {} in ZIP", i))?;
 
         let outpath = match file.enclosed_name() {
@@ -276,20 +296,31 @@ pub fn extract_zip_certificates(zip_path: &Path, output_dir: &Path) -> Result<Ex
 }
 
 /// Extract certificates from a ZIP file in memory
-pub fn extract_zip_certificates_from_bytes(zip_data: &[u8], output_dir: &Path) -> Result<ExtractedCertificates> {
-    info!("Extracting certificates from ZIP data ({} bytes)", zip_data.len());
+pub fn extract_zip_certificates_from_bytes(
+    zip_data: &[u8],
+    output_dir: &Path,
+) -> Result<ExtractedCertificates> {
+    info!(
+        "Extracting certificates from ZIP data ({} bytes)",
+        zip_data.len()
+    );
 
     let cursor = Cursor::new(zip_data);
-    let mut archive = zip::ZipArchive::new(cursor)
-        .context("Failed to read ZIP archive from memory")?;
+    let mut archive =
+        zip::ZipArchive::new(cursor).context("Failed to read ZIP archive from memory")?;
 
-    std::fs::create_dir_all(output_dir)
-        .with_context(|| format!("Failed to create output directory: {}", output_dir.display()))?;
+    std::fs::create_dir_all(output_dir).with_context(|| {
+        format!(
+            "Failed to create output directory: {}",
+            output_dir.display()
+        )
+    })?;
 
     let mut extracted_files = Vec::new();
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
+        let mut file = archive
+            .by_index(i)
             .with_context(|| format!("Failed to read file at index {} in ZIP", i))?;
 
         let outpath = match file.enclosed_name() {
@@ -312,7 +343,10 @@ pub fn extract_zip_certificates_from_bytes(zip_data: &[u8], output_dir: &Path) -
 }
 
 /// Classify certificate files by their type based on name and content
-pub fn classify_certificate_files(files: &[PathBuf], _base_dir: &Path) -> Result<ExtractedCertificates> {
+pub fn classify_certificate_files(
+    files: &[PathBuf],
+    _base_dir: &Path,
+) -> Result<ExtractedCertificates> {
     let mut result = ExtractedCertificates {
         ca_cert_path: None,
         client_cert_path: None,
@@ -329,12 +363,14 @@ pub fn classify_certificate_files(files: &[PathBuf], _base_dir: &Path) -> Result
     let mut key_candidates: Vec<PathBuf> = Vec::new();
 
     for file in files {
-        let name = file.file_name()
+        let name = file
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_lowercase();
 
-        let ext = file.extension()
+        let ext = file
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_lowercase();
@@ -370,13 +406,18 @@ pub fn classify_certificate_files(files: &[PathBuf], _base_dir: &Path) -> Result
     if !p12_candidates.is_empty() {
         // Prefer user/client P12 over truststore P12
         result.p12_path = Some(
-            p12_candidates.iter()
+            p12_candidates
+                .iter()
                 .find(|p| {
-                    let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
+                    let name = p
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_lowercase();
                     !name.contains("truststore") && !name.contains("ca")
                 })
                 .cloned()
-                .unwrap_or_else(|| p12_candidates[0].clone())
+                .unwrap_or_else(|| p12_candidates[0].clone()),
         );
     }
 
@@ -388,13 +429,18 @@ pub fn classify_certificate_files(files: &[PathBuf], _base_dir: &Path) -> Result
     // Client certificate (prefer ones with "client" or "admin" in name)
     if !cert_candidates.is_empty() {
         result.client_cert_path = Some(
-            cert_candidates.iter()
+            cert_candidates
+                .iter()
                 .find(|p| {
-                    let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
+                    let name = p
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_lowercase();
                     name.contains("client") || name.contains("admin") || name.contains("user")
                 })
                 .cloned()
-                .unwrap_or_else(|| cert_candidates[0].clone())
+                .unwrap_or_else(|| cert_candidates[0].clone()),
         );
     }
 
@@ -449,7 +495,8 @@ fn parse_tak_config_file(path: &Path) -> Result<ExtractedServerInfo> {
             if let Some(start) = content.find(pattern) {
                 if let Some(quote_start) = content[start..].find('"') {
                     if let Some(quote_end) = content[start + quote_start + 1..].find('"') {
-                        let value = &content[start + quote_start + 1..start + quote_start + 1 + quote_end];
+                        let value =
+                            &content[start + quote_start + 1..start + quote_start + 1 + quote_end];
                         if !value.is_empty() && !value.contains('<') {
                             server_info.host = Some(value.to_string());
                             break;
@@ -465,7 +512,8 @@ fn parse_tak_config_file(path: &Path) -> Result<ExtractedServerInfo> {
         if let Some(start) = content.find("port") {
             if let Some(quote_start) = content[start..].find('"') {
                 if let Some(quote_end) = content[start + quote_start + 1..].find('"') {
-                    let value = &content[start + quote_start + 1..start + quote_start + 1 + quote_end];
+                    let value =
+                        &content[start + quote_start + 1..start + quote_start + 1 + quote_end];
                     server_info.port = value.parse().ok();
                 }
             }
@@ -480,7 +528,8 @@ pub fn auto_load_certificate_bundle(
     path: &Path,
     password: Option<&str>,
 ) -> Result<CertificateBundle> {
-    let ext = path.extension()
+    let ext = path
+        .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
@@ -493,8 +542,7 @@ pub fn auto_load_certificate_bundle(
         }
         "zip" => {
             // Extract to temp directory and then load
-            let temp_dir = tempfile::tempdir()
-                .context("Failed to create temporary directory")?;
+            let temp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
             let extracted = extract_zip_certificates(path, temp_dir.path())?;
 
             // Try P12 first if available
@@ -504,10 +552,13 @@ pub fn auto_load_certificate_bundle(
             }
 
             // Otherwise try PEM files
-            if let (Some(cert_path), Some(key_path)) = (&extracted.client_cert_path, &extracted.client_key_path) {
+            if let (Some(cert_path), Some(key_path)) =
+                (&extracted.client_cert_path, &extracted.client_key_path)
+            {
                 let cert_pem = std::fs::read(cert_path)?;
                 let key_pem = std::fs::read(key_path)?;
-                let ca_pem = extracted.ca_cert_path
+                let ca_pem = extracted
+                    .ca_cert_path
                     .as_ref()
                     .map(|p| std::fs::read(p))
                     .transpose()?;
@@ -563,13 +614,17 @@ pub fn scan_directory_for_certificates(dir: &Path) -> Result<ExtractedCertificat
         let path = entry.path();
 
         if path.is_file() {
-            let ext = path.extension()
+            let ext = path
+                .extension()
                 .and_then(|e| e.to_str())
                 .unwrap_or("")
                 .to_lowercase();
 
             // Only include certificate-related files
-            if matches!(ext.as_str(), "pem" | "crt" | "cer" | "key" | "p12" | "pfx" | "xml") {
+            if matches!(
+                ext.as_str(),
+                "pem" | "crt" | "cer" | "key" | "p12" | "pfx" | "xml"
+            ) {
                 files.push(path);
             }
         }
@@ -631,14 +686,15 @@ pub struct CertificateChainInfo {
 impl CertificateInfo {
     /// Parse certificate info from DER-encoded data
     pub fn from_der(der_data: &[u8]) -> Result<Self> {
-        use x509_parser::prelude::*;
         use chrono::{DateTime, Utc};
+        use x509_parser::prelude::*;
 
         let (_, cert) = X509Certificate::from_der(der_data)
             .map_err(|e| anyhow!("Failed to parse X.509 certificate: {}", e))?;
 
         // Extract subject CN
-        let subject_cn = cert.subject()
+        let subject_cn = cert
+            .subject()
             .iter_common_name()
             .next()
             .and_then(|cn| cn.as_str().ok())
@@ -648,7 +704,8 @@ impl CertificateInfo {
         let subject_dn = cert.subject().to_string();
 
         // Extract issuer CN
-        let issuer_cn = cert.issuer()
+        let issuer_cn = cert
+            .issuer()
             .iter_common_name()
             .next()
             .and_then(|cn| cn.as_str().ok())
@@ -690,17 +747,32 @@ impl CertificateInfo {
         // Key usage
         let mut key_usage = Vec::new();
         if let Ok(Some(ku)) = cert.key_usage() {
-            if ku.value.digital_signature() { key_usage.push("Digital Signature".to_string()); }
-            if ku.value.non_repudiation() { key_usage.push("Non Repudiation".to_string()); }
-            if ku.value.key_encipherment() { key_usage.push("Key Encipherment".to_string()); }
-            if ku.value.data_encipherment() { key_usage.push("Data Encipherment".to_string()); }
-            if ku.value.key_agreement() { key_usage.push("Key Agreement".to_string()); }
-            if ku.value.key_cert_sign() { key_usage.push("Certificate Signing".to_string()); }
-            if ku.value.crl_sign() { key_usage.push("CRL Signing".to_string()); }
+            if ku.value.digital_signature() {
+                key_usage.push("Digital Signature".to_string());
+            }
+            if ku.value.non_repudiation() {
+                key_usage.push("Non Repudiation".to_string());
+            }
+            if ku.value.key_encipherment() {
+                key_usage.push("Key Encipherment".to_string());
+            }
+            if ku.value.data_encipherment() {
+                key_usage.push("Data Encipherment".to_string());
+            }
+            if ku.value.key_agreement() {
+                key_usage.push("Key Agreement".to_string());
+            }
+            if ku.value.key_cert_sign() {
+                key_usage.push("Certificate Signing".to_string());
+            }
+            if ku.value.crl_sign() {
+                key_usage.push("CRL Signing".to_string());
+            }
         }
 
         // Is CA
-        let is_ca = cert.basic_constraints()
+        let is_ca = cert
+            .basic_constraints()
             .ok()
             .flatten()
             .map(|bc| bc.value.ca)
@@ -734,7 +806,8 @@ impl CertificateInfo {
             .collect::<Result<Vec<_>, _>>()
             .context("Failed to parse PEM certificates")?;
 
-        certs.iter()
+        certs
+            .iter()
             .map(|cert| Self::from_der(cert.as_ref()))
             .collect()
     }
@@ -768,16 +841,17 @@ impl CertificateChainInfo {
         let mut earliest_expiry: Option<String> = None;
         let mut days_until_chain_expiry: Option<i64> = None;
 
-        let all_certs: Vec<&CertificateInfo> = client_cert.iter()
-            .chain(intermediates.iter())
-            .collect();
+        let all_certs: Vec<&CertificateInfo> =
+            client_cert.iter().chain(intermediates.iter()).collect();
 
         for cert in all_certs {
             if !cert.is_valid {
                 chain_valid = false;
             }
 
-            if days_until_chain_expiry.is_none() || cert.days_until_expiry < days_until_chain_expiry.unwrap() {
+            if days_until_chain_expiry.is_none()
+                || cert.days_until_expiry < days_until_chain_expiry.unwrap()
+            {
                 days_until_chain_expiry = Some(cert.days_until_expiry);
                 earliest_expiry = Some(cert.not_after.clone());
             }
@@ -797,12 +871,21 @@ impl CertificateChainInfo {
 /// Format ASN.1 time to ISO 8601 string
 fn format_asn1_time(time: &x509_parser::time::ASN1Time) -> String {
     let dt = time.to_datetime();
-    format!("{}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
-        dt.year(), dt.month() as u8, dt.day(), dt.hour(), dt.minute(), dt.second())
+    format!(
+        "{}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+        dt.year(),
+        dt.month() as u8,
+        dt.day(),
+        dt.hour(),
+        dt.minute(),
+        dt.second()
+    )
 }
 
 /// Parse ASN.1 time to chrono DateTime
-fn parse_asn1_time_to_datetime(time: &x509_parser::time::ASN1Time) -> Result<chrono::DateTime<chrono::Utc>> {
+fn parse_asn1_time_to_datetime(
+    time: &x509_parser::time::ASN1Time,
+) -> Result<chrono::DateTime<chrono::Utc>> {
     let offset_dt = time.to_datetime();
     // Convert from time::OffsetDateTime to chrono::DateTime<Utc>
     let timestamp = offset_dt.unix_timestamp();

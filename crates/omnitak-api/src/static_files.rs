@@ -1,11 +1,11 @@
 //! Static file serving with embedded assets
 
 use axum::{
-    Router,
     body::Body,
-    http::{HeaderValue, Response, StatusCode, Uri, header},
+    http::{header, HeaderValue, Response, StatusCode, Uri},
     response::IntoResponse,
     routing::get,
+    Router,
 };
 use rust_embed::RustEmbed;
 use std::borrow::Cow;

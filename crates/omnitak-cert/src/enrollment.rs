@@ -18,12 +18,12 @@
 //! - `/Marti/api/tls/enrollment` - Alternative enrollment endpoint
 //! - `/api/cert/enroll` - OpenTAKServer enrollment endpoint
 
-use anyhow::{Context, Result, anyhow};
-use base64::{Engine, prelude::BASE64_STANDARD};
+use anyhow::{anyhow, Context, Result};
+use base64::{prelude::BASE64_STANDARD, Engine};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 use crate::CertificateBundle;
 
@@ -207,7 +207,10 @@ impl EnrollmentClient {
         let status = response.status();
 
         if !status.is_success() {
-            let error_text = response.text().await.unwrap_or_else(|_| String::from("Unknown error"));
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| String::from("Unknown error"));
 
             if status.as_u16() == 401 || status.as_u16() == 403 {
                 return Err(anyhow!(
@@ -318,11 +321,9 @@ impl EnrollmentClient {
                     .decode(&p12_data)
                     .context("Failed to decode PKCS#12 data")?;
 
-                let certificate_bundle = CertificateBundle::from_pkcs12(
-                    &p12_bytes,
-                    p12_password.as_deref(),
-                )
-                .context("Failed to parse PKCS#12 certificate")?;
+                let certificate_bundle =
+                    CertificateBundle::from_pkcs12(&p12_bytes, p12_password.as_deref())
+                        .context("Failed to parse PKCS#12 certificate")?;
 
                 let hostname = server_host.unwrap_or_else(|| {
                     server_url

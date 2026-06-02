@@ -107,7 +107,7 @@ impl WasmFilterPlugin {
             lon: msg.lon,
             hae: msg.hae,
             time: String::new(), // Not available in CotMessage
-            xml_payload: None,    // Not available in CotMessage
+            xml_payload: None,   // Not available in CotMessage
         };
 
         // Call the WASM exported evaluate function
@@ -137,9 +137,7 @@ impl FilterRule for WasmFilterPlugin {
         // In production, consider using a thread pool or async runtime
         tokio::runtime::Handle::try_current()
             .ok()
-            .and_then(|handle| {
-                handle.block_on(async { self.evaluate_async(msg).await.ok() })
-            })
+            .and_then(|handle| handle.block_on(async { self.evaluate_async(msg).await.ok() }))
             .unwrap_or(FilterResult::Block) // Fail closed on error
     }
 

@@ -95,10 +95,8 @@ pub fn render_datapackage_panel(
                         ));
                     }
                     Err(e) => {
-                        panel_state.status_message = Some((
-                            format!("Failed to load package: {}", e),
-                            StatusLevel::Error,
-                        ));
+                        panel_state.status_message =
+                            Some((format!("Failed to load package: {}", e), StatusLevel::Error));
                     }
                 }
             }
@@ -117,10 +115,8 @@ pub fn render_datapackage_panel(
                     ));
                 }
                 Err(e) => {
-                    panel_state.status_message = Some((
-                        format!("Export failed: {}", e),
-                        StatusLevel::Error,
-                    ));
+                    panel_state.status_message =
+                        Some((format!("Export failed: {}", e), StatusLevel::Error));
                 }
             }
             panel_state.export_promise = None;
@@ -255,31 +251,29 @@ fn render_package_details(
     ui.add_space(8.0);
     ui.heading("Files");
 
-    ScrollArea::vertical()
-        .max_height(300.0)
-        .show(ui, |ui| {
-            for content in &pkg.contents {
-                ui.horizontal(|ui| {
-                    let icon = match content.content_type {
-                        ContentType::CotEvent => "📍",
-                        ContentType::MapOverlay => "🗺",
-                        ContentType::MapTiles => "🧩",
-                        ContentType::Configuration | ContentType::Preferences => "⚙",
-                        ContentType::Certificate => "🔐",
-                        ContentType::Attachment | ContentType::Route => "📎",
-                        ContentType::Unknown => "📄",
-                    };
+    ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+        for content in &pkg.contents {
+            ui.horizontal(|ui| {
+                let icon = match content.content_type {
+                    ContentType::CotEvent => "📍",
+                    ContentType::MapOverlay => "🗺",
+                    ContentType::MapTiles => "🧩",
+                    ContentType::Configuration | ContentType::Preferences => "⚙",
+                    ContentType::Certificate => "🔐",
+                    ContentType::Attachment | ContentType::Route => "📎",
+                    ContentType::Unknown => "📄",
+                };
 
-                    ui.label(icon);
-                    ui.monospace(&content.path);
-                    ui.label(format!("({})", format_size(content.size)));
+                ui.label(icon);
+                ui.monospace(&content.path);
+                ui.label(format!("({})", format_size(content.size)));
 
-                    if content.ignore {
-                        ui.colored_label(Color32::YELLOW, "[ignored]");
-                    }
-                });
-            }
-        });
+                if content.ignore {
+                    ui.colored_label(Color32::YELLOW, "[ignored]");
+                }
+            });
+        }
+    });
 
     ui.add_space(8.0);
 
@@ -404,7 +398,8 @@ fn render_create_dialog(ui: &mut Ui, panel_state: &mut DataPackagePanelState) {
             format!("{}.zip", new_name)
         };
 
-        let mut builder = DataPackageBuilder::new(&pkg_name).on_receive_delete(new_delete_on_receive);
+        let mut builder =
+            DataPackageBuilder::new(&pkg_name).on_receive_delete(new_delete_on_receive);
 
         // Add CoT events
         for (event_name, xml) in &cot_events {

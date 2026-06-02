@@ -263,10 +263,7 @@ impl ApiClient {
             request = request.bearer_auth(token);
         }
 
-        let response = request
-            .send()
-            .await
-            .context("Failed to list connections")?;
+        let response = request.send().await.context("Failed to list connections")?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -292,10 +289,7 @@ impl ApiClient {
             req = req.bearer_auth(token);
         }
 
-        let response = req
-            .send()
-            .await
-            .context("Failed to create connection")?;
+        let response = req.send().await.context("Failed to create connection")?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -363,10 +357,7 @@ impl ApiClient {
             request = request.bearer_auth(token);
         }
 
-        let response = request
-            .send()
-            .await
-            .context("Failed to list plugins")?;
+        let response = request.send().await.context("Failed to list plugins")?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -383,7 +374,10 @@ impl ApiClient {
     }
 
     /// Load a new plugin
-    pub async fn load_plugin(&self, request: LoadPluginRequest) -> Result<omnitak_plugin_api::PluginInfo> {
+    pub async fn load_plugin(
+        &self,
+        request: LoadPluginRequest,
+    ) -> Result<omnitak_plugin_api::PluginInfo> {
         let url = format!("{}/api/v1/plugins", self.base_url);
 
         let mut req = self.client.post(&url).json(&request);
@@ -392,10 +386,7 @@ impl ApiClient {
             req = req.bearer_auth(token);
         }
 
-        let response = req
-            .send()
-            .await
-            .context("Failed to load plugin")?;
+        let response = req.send().await.context("Failed to load plugin")?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -450,10 +441,7 @@ impl ApiClient {
             request = request.bearer_auth(token);
         }
 
-        let response = request
-            .send()
-            .await
-            .context("Failed to unload plugin")?;
+        let response = request.send().await.context("Failed to unload plugin")?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -476,10 +464,7 @@ impl ApiClient {
             req = req.bearer_auth(token);
         }
 
-        let response = req
-            .send()
-            .await
-            .context("Failed to update plugin config")?;
+        let response = req.send().await.context("Failed to update plugin config")?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -502,10 +487,7 @@ impl ApiClient {
             req = req.bearer_auth(token);
         }
 
-        let response = req
-            .send()
-            .await
-            .context("Failed to toggle plugin")?;
+        let response = req.send().await.context("Failed to toggle plugin")?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -584,10 +566,7 @@ impl ApiClient {
             request = request.bearer_auth(token);
         }
 
-        let response = request
-            .send()
-            .await
-            .context("Failed to reload plugin")?;
+        let response = request.send().await.context("Failed to reload plugin")?;
 
         if !response.status().is_success() {
             let status = response.status();

@@ -3,14 +3,14 @@
 //! Generates self-signed CA certificates and client certificates for TAK clients.
 //! This enables OmniTAK to act as a certificate authority for client enrollment.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use rcgen::{
-    BasicConstraints, CertificateParams, DistinguishedName, DnType,
-    ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose, SanType,
+    BasicConstraints, CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose, IsCa,
+    KeyPair, KeyUsagePurpose, SanType,
 };
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use tracing::{info, debug};
+use tracing::{debug, info};
 
 /// Configuration for the Certificate Authority
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,8 +111,7 @@ impl GeneratedCa {
         }
 
         // Generate key pair
-        let key_pair = KeyPair::generate()
-            .context("Failed to generate CA key pair")?;
+        let key_pair = KeyPair::generate().context("Failed to generate CA key pair")?;
 
         // Create certificate params
         let mut params = CertificateParams::default();
@@ -130,7 +129,8 @@ impl GeneratedCa {
         params.not_after = now + time::Duration::days(config.validity_days as i64);
 
         // Generate self-signed certificate
-        let certificate = params.self_signed(&key_pair)
+        let certificate = params
+            .self_signed(&key_pair)
             .context("Failed to generate self-signed CA certificate")?;
 
         let cert_pem = certificate.pem();
@@ -138,17 +138,13 @@ impl GeneratedCa {
 
         info!("CA certificate generated successfully");
 
-        Ok(Self {
-            cert_pem,
-            key_pem,
-        })
+        Ok(Self { cert_pem, key_pem })
     }
 
     /// Load CA from existing PEM strings
     pub fn from_pem(cert_pem: &str, key_pem: &str) -> Result<Self> {
         // Validate that the PEM data is parseable
-        let _key_pair = KeyPair::from_pem(key_pem)
-            .context("Failed to parse CA private key")?;
+        let _key_pair = KeyPair::from_pem(key_pem).context("Failed to parse CA private key")?;
 
         // Validate certificate is parseable
         let _params = CertificateParams::from_ca_cert_pem(cert_pem)
@@ -185,7 +181,11 @@ impl GeneratedCa {
         std::fs::write(key_path, &self.key_pem)
             .with_context(|| format!("Failed to write CA key: {}", key_path.display()))?;
 
-        info!("CA saved to {} and {}", cert_path.display(), key_path.display());
+        info!(
+            "CA saved to {} and {}",
+            cert_path.display(),
+            key_path.display()
+        );
         Ok(())
     }
 
@@ -194,15 +194,16 @@ impl GeneratedCa {
         info!("Issuing client certificate for: {}", config.common_name);
 
         // Load CA key pair
-        let ca_key_pair = KeyPair::from_pem(&self.key_pem)
-            .context("Failed to parse CA private key")?;
+        let ca_key_pair =
+            KeyPair::from_pem(&self.key_pem).context("Failed to parse CA private key")?;
 
         // Parse CA cert params for signing
         let ca_params = CertificateParams::from_ca_cert_pem(&self.cert_pem)
             .context("Failed to parse CA certificate")?;
 
         // Re-create CA certificate for signing
-        let ca_cert = ca_params.self_signed(&ca_key_pair)
+        let ca_cert = ca_params
+            .self_signed(&ca_key_pair)
             .context("Failed to recreate CA certificate for signing")?;
 
         // Create distinguished name for client
@@ -214,8 +215,7 @@ impl GeneratedCa {
         }
 
         // Generate client key pair
-        let client_key_pair = KeyPair::generate()
-            .context("Failed to generate client key pair")?;
+        let client_key_pair = KeyPair::generate().context("Failed to generate client key pair")?;
 
         // Create certificate params
         let mut params = CertificateParams::default();
@@ -225,9 +225,7 @@ impl GeneratedCa {
             KeyUsagePurpose::DigitalSignature,
             KeyUsagePurpose::KeyEncipherment,
         ];
-        params.extended_key_usages = vec![
-            ExtendedKeyUsagePurpose::ClientAuth,
-        ];
+        params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ClientAuth];
 
         // Add email as SAN if provided
         if let Some(email) = &config.email {
@@ -242,7 +240,8 @@ impl GeneratedCa {
         params.not_after = now + time::Duration::days(config.validity_days as i64);
 
         // Sign with CA
-        let client_cert = params.signed_by(&client_key_pair, &ca_cert, &ca_key_pair)
+        let client_cert = params
+            .signed_by(&client_key_pair, &ca_cert, &ca_key_pair)
             .context("Failed to sign client certificate with CA")?;
 
         let cert_pem = client_cert.pem();
@@ -285,7 +284,8 @@ impl GeneratedClientCert {
             let certs: Vec<_> = rustls_pemfile::certs(&mut reader)
                 .collect::<Result<Vec<_>, _>>()
                 .context("Failed to parse client certificate PEM")?;
-            certs.first()
+            certs
+                .first()
                 .ok_or_else(|| anyhow!("No certificate found in PEM"))?
                 .to_vec()
         };
@@ -304,7 +304,8 @@ impl GeneratedClientCert {
             let certs: Vec<_> = rustls_pemfile::certs(&mut reader)
                 .collect::<Result<Vec<_>, _>>()
                 .context("Failed to parse CA certificate PEM")?;
-            certs.first()
+            certs
+                .first()
                 .ok_or_else(|| anyhow!("No CA certificate found in PEM"))?
                 .to_vec()
         };
@@ -318,8 +319,14 @@ impl GeneratedClientCert {
         };
 
         // Create PKCS#12 using the p12 crate
-        let pfx = PFX::new(&cert_der, &key_bytes, Some(&ca_cert_der), password, &self.common_name)
-            .ok_or_else(|| anyhow!("Failed to create PKCS#12 structure"))?;
+        let pfx = PFX::new(
+            &cert_der,
+            &key_bytes,
+            Some(&ca_cert_der),
+            password,
+            &self.common_name,
+        )
+        .ok_or_else(|| anyhow!("Failed to create PKCS#12 structure"))?;
 
         let p12_der = pfx.to_der();
 
@@ -344,7 +351,11 @@ impl GeneratedClientCert {
                 .with_context(|| format!("Failed to write CA cert: {}", ca_path.display()))?;
         }
 
-        info!("Client certificate saved to {} and {}", cert_path.display(), key_path.display());
+        info!(
+            "Client certificate saved to {} and {}",
+            cert_path.display(),
+            key_path.display()
+        );
         Ok(())
     }
 }
@@ -428,7 +439,9 @@ fn generate_secure_token() -> String {
     // Simple PRNG for token generation
     let mut state = seed as u64;
     for byte in &mut bytes {
-        state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         *byte = (state >> 56) as u8;
     }
 

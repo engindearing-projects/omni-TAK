@@ -14,9 +14,9 @@ use omnitak_pool::{
 };
 use serde::Deserialize;
 use server_listener::{
-    TcpListener as ServerTcpListener, TlsListener as ServerTlsListener,
-    ListenerConfig as ServerListenerConfig, ListenerProtocol as ServerListenerProtocol,
-    TlsListenerConfig as ServerTlsListenerConfig, ClientAuthConfig as ServerClientAuthConfig,
+    ClientAuthConfig as ServerClientAuthConfig, ListenerConfig as ServerListenerConfig,
+    ListenerProtocol as ServerListenerProtocol, TcpListener as ServerTcpListener,
+    TlsListener as ServerTlsListener, TlsListenerConfig as ServerTlsListenerConfig,
 };
 use std::collections::HashSet;
 use std::fs;
@@ -173,10 +173,12 @@ fn validate_listeners(listeners: &[ListenerConfig]) -> Result<()> {
     let mut seen_ports = HashSet::new();
     for listener in listeners.iter().filter(|l| l.enabled) {
         // Parse bind address to extract port
-        let addr: SocketAddr = listener
-            .bind_addr
-            .parse()
-            .with_context(|| format!("Invalid bind address for listener '{}': {}", listener.id, listener.bind_addr))?;
+        let addr: SocketAddr = listener.bind_addr.parse().with_context(|| {
+            format!(
+                "Invalid bind address for listener '{}': {}",
+                listener.id, listener.bind_addr
+            )
+        })?;
 
         let port = addr.port();
         if !seen_ports.insert(port) {
@@ -200,14 +202,23 @@ fn validate_listeners(listeners: &[ListenerConfig]) -> Result<()> {
             })?;
 
             // Validate TLS certificate paths exist
-            validate_file_exists(&tls_config.cert_path, &format!("TLS certificate for listener '{}'", listener.id))?;
-            validate_file_exists(&tls_config.key_path, &format!("TLS key for listener '{}'", listener.id))?;
+            validate_file_exists(
+                &tls_config.cert_path,
+                &format!("TLS certificate for listener '{}'", listener.id),
+            )?;
+            validate_file_exists(
+                &tls_config.key_path,
+                &format!("TLS key for listener '{}'", listener.id),
+            )?;
 
             // Validate client auth CA if required
             if let Some(ref client_auth) = tls_config.client_auth {
                 if client_auth.required {
                     if let Some(ref ca_path) = client_auth.ca_path {
-                        validate_file_exists(ca_path, &format!("Client CA certificate for listener '{}'", listener.id))?;
+                        validate_file_exists(
+                            ca_path,
+                            &format!("Client CA certificate for listener '{}'", listener.id),
+                        )?;
                     } else {
                         anyhow::bail!(
                             "Listener '{}' requires client authentication but 'ca_path' is not specified",
@@ -479,20 +490,18 @@ async fn main() -> Result<()> {
                     Arc::clone(&pool),
                     Arc::clone(&aggregator),
                 ) {
-                    Ok(mut tls_listener) => {
-                        match tls_listener.start().await {
-                            Ok(_) => {
-                                info!("TLS listener '{}' started successfully", listener_config.id);
-                                tls_listeners.push(tls_listener);
-                            }
-                            Err(e) => {
-                                error!(
-                                    "Failed to start TLS listener '{}': {}",
-                                    listener_config.id, e
-                                );
-                            }
+                    Ok(mut tls_listener) => match tls_listener.start().await {
+                        Ok(_) => {
+                            info!("TLS listener '{}' started successfully", listener_config.id);
+                            tls_listeners.push(tls_listener);
                         }
-                    }
+                        Err(e) => {
+                            error!(
+                                "Failed to start TLS listener '{}': {}",
+                                listener_config.id, e
+                            );
+                        }
+                    },
                     Err(e) => {
                         error!(
                             "Failed to create TLS listener '{}': {}",
@@ -620,10 +629,8 @@ async fn main() -> Result<()> {
                             info!("[{}] Registered with connection pool", server_id);
 
                             // Set filter to broadcast to all connections (default behavior)
-                            distributor_clone.add_filter(
-                                connection_id.clone(),
-                                FilterRule::AlwaysSend,
-                            );
+                            distributor_clone
+                                .add_filter(connection_id.clone(), FilterRule::AlwaysSend);
                         }
                         Err(e) => {
                             error!("[{}] Failed to register with pool: {}", server_id, e);
@@ -670,7 +677,8 @@ async fn main() -> Result<()> {
                                         timestamp: Instant::now(),
                                     };
 
-                                    if let Err(e) = aggregator_sender.send_async(inbound_msg).await {
+                                    if let Err(e) = aggregator_sender.send_async(inbound_msg).await
+                                    {
                                         error!(
                                             "[{}] Failed to send to aggregator: {}",
                                             server_id_clone, e
@@ -680,10 +688,7 @@ async fn main() -> Result<()> {
                                 }
                                 Err(e) => {
                                     metrics_clone.record_error();
-                                    warn!(
-                                        "[{}] Error receiving message: {}",
-                                        server_id_clone, e
-                                    );
+                                    warn!("[{}] Error receiving message: {}", server_id_clone, e);
                                     break;
                                 }
                             }
@@ -803,7 +808,10 @@ async fn main() -> Result<()> {
                                         );
                                     }
                                     Err(e) => {
-                                        error!("[{}] Failed to register with pool: {}", server_id, e);
+                                        error!(
+                                            "[{}] Failed to register with pool: {}",
+                                            server_id, e
+                                        );
                                         return;
                                     }
                                 }
@@ -812,7 +820,10 @@ async fn main() -> Result<()> {
                                 let connection = match pool_clone.get_connection(&connection_id) {
                                     Some(conn) => conn,
                                     None => {
-                                        error!("[{}] Failed to get connection from pool", server_id);
+                                        error!(
+                                            "[{}] Failed to get connection from pool",
+                                            server_id
+                                        );
                                         return;
                                     }
                                 };
@@ -847,7 +858,9 @@ async fn main() -> Result<()> {
                                                     timestamp: Instant::now(),
                                                 };
 
-                                                if let Err(e) = aggregator_sender.send_async(inbound_msg).await {
+                                                if let Err(e) =
+                                                    aggregator_sender.send_async(inbound_msg).await
+                                                {
                                                     error!(
                                                         "[{}] Failed to send to aggregator: {}",
                                                         server_id_clone, e
@@ -900,7 +913,10 @@ async fn main() -> Result<()> {
                                                 // Health check - no action needed
                                             }
                                             PoolMessage::Shutdown => {
-                                                info!("[{}] Received shutdown signal", server_id_clone);
+                                                info!(
+                                                    "[{}] Received shutdown signal",
+                                                    server_id_clone
+                                                );
                                                 break;
                                             }
                                         }

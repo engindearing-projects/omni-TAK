@@ -154,7 +154,9 @@ impl AdbClient {
     /// Check if a path exists on device
     pub fn path_exists(&self, device: &str, path: &str) -> bool {
         let result = Command::new(&self.adb_path)
-            .args(["-s", device, "shell", "test", "-e", path, "&&", "echo", "exists"])
+            .args([
+                "-s", device, "shell", "test", "-e", path, "&&", "echo", "exists",
+            ])
             .output();
 
         if let Ok(output) = result {
@@ -271,10 +273,22 @@ mod tests {
 
     #[test]
     fn test_certificate_type_detection() {
-        assert_eq!(CertificateType::from_filename("client.p12"), CertificateType::P12);
-        assert_eq!(CertificateType::from_filename("truststore-ca.pem"), CertificateType::CA);
-        assert_eq!(CertificateType::from_filename("client.key"), CertificateType::Key);
-        assert_eq!(CertificateType::from_filename("client.pem"), CertificateType::Client);
+        assert_eq!(
+            CertificateType::from_filename("client.p12"),
+            CertificateType::P12
+        );
+        assert_eq!(
+            CertificateType::from_filename("truststore-ca.pem"),
+            CertificateType::CA
+        );
+        assert_eq!(
+            CertificateType::from_filename("client.key"),
+            CertificateType::Key
+        );
+        assert_eq!(
+            CertificateType::from_filename("client.pem"),
+            CertificateType::Client
+        );
     }
 
     #[test]

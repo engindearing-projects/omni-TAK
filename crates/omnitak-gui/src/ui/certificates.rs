@@ -36,7 +36,8 @@ pub fn render_certificate_manager(
     if let Some(promise) = &state.file_picker_promise {
         if let Some(result) = promise.ready() {
             if let Some(path) = result {
-                let ext = path.extension()
+                let ext = path
+                    .extension()
                     .and_then(|e| e.to_str())
                     .unwrap_or("")
                     .to_lowercase();
@@ -124,14 +125,12 @@ pub fn render_certificate_manager(
     // Load certificate button
     ui.horizontal(|ui| {
         if ui.button("Load Certificate File").clicked() && state.file_picker_promise.is_none() {
-            state.file_picker_promise = Some(poll_promise::Promise::spawn_thread(
-                "cert_picker",
-                || {
+            state.file_picker_promise =
+                Some(poll_promise::Promise::spawn_thread("cert_picker", || {
                     rfd::FileDialog::new()
                         .add_filter("Certificates", &["pem", "crt", "cer", "p12", "pfx"])
                         .pick_file()
-                },
-            ));
+                }));
         }
 
         if state.chain_info.is_some() && ui.button("Clear").clicked() {
@@ -152,7 +151,9 @@ pub fn render_certificate_manager(
     if let Some(chain) = &state.chain_info {
         render_certificate_chain(ui, chain, &mut state.selected_cert);
     } else {
-        ui.label("No certificate loaded. Click 'Load Certificate File' to view certificate details.");
+        ui.label(
+            "No certificate loaded. Click 'Load Certificate File' to view certificate details.",
+        );
     }
 
     status_message
@@ -237,7 +238,14 @@ fn render_certificate_chain(
 
             // Client certificate (leaf)
             if let Some(client_cert) = &chain.client_cert {
-                render_cert_node(ui, client_cert, "Client Certificate", 0, cert_index, selected);
+                render_cert_node(
+                    ui,
+                    client_cert,
+                    "Client Certificate",
+                    0,
+                    cert_index,
+                    selected,
+                );
                 cert_index += 1;
             }
 
@@ -254,7 +262,14 @@ fn render_certificate_chain(
 
             // Root CA (if separate)
             if let Some(root_ca) = &chain.root_ca {
-                render_cert_node(ui, root_ca, "Root CA", chain.intermediates.len() + 1, cert_index, selected);
+                render_cert_node(
+                    ui,
+                    root_ca,
+                    "Root CA",
+                    chain.intermediates.len() + 1,
+                    cert_index,
+                    selected,
+                );
             }
         });
 
@@ -302,7 +317,10 @@ fn render_cert_node(
         ui.colored_label(status_color, status_icon);
 
         let is_selected = *selected == Some(index);
-        if ui.selectable_label(is_selected, format!("{}: {}", label, cert.subject_cn)).clicked() {
+        if ui
+            .selectable_label(is_selected, format!("{}: {}", label, cert.subject_cn))
+            .clicked()
+        {
             *selected = Some(index);
         }
 

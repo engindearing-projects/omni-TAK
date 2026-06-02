@@ -33,8 +33,8 @@ impl PluginRuntime {
         // Use Cranelift optimizer for best performance
         config.cranelift_opt_level(OptLevel::Speed);
 
-        let engine = Engine::new(&config)
-            .map_err(|e| PluginError::CompilationError(e.to_string()))?;
+        let engine =
+            Engine::new(&config).map_err(|e| PluginError::CompilationError(e.to_string()))?;
 
         Ok(Self {
             engine,
@@ -88,7 +88,9 @@ impl PluginRuntime {
 
         // Add allowed filesystem paths
         for path in &self.sandbox_policy.allowed_paths {
-            if self.sandbox_policy.allow_filesystem_write || self.sandbox_policy.allow_filesystem_read {
+            if self.sandbox_policy.allow_filesystem_write
+                || self.sandbox_policy.allow_filesystem_read
+            {
                 // Determine permissions based on policy
                 let (dir_perms, file_perms) = if self.sandbox_policy.allow_filesystem_write {
                     (
@@ -119,7 +121,10 @@ impl PluginRuntime {
     }
 
     /// Load and compile a plugin from file
-    pub fn load_plugin_from_file(&self, path: &str) -> PluginResult<wasmtime::component::Component> {
+    pub fn load_plugin_from_file(
+        &self,
+        path: &str,
+    ) -> PluginResult<wasmtime::component::Component> {
         let wasm_bytes = std::fs::read(path)?;
         self.load_plugin(&wasm_bytes)
     }

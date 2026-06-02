@@ -3,18 +3,18 @@
 use crate::auth::AuthService;
 use crate::types::{AuditLogEntry, ErrorResponse, UserRole};
 use axum::{
-    Json,
     body::Body,
     extract::{ConnectInfo, Request, State},
     http::{HeaderValue, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
+    Json,
 };
 use dashmap::DashMap;
 use governor::{
-    Quota, RateLimiter,
     clock::DefaultClock,
-    state::{InMemoryState, direct::NotKeyed},
+    state::{direct::NotKeyed, InMemoryState},
+    Quota, RateLimiter,
 };
 use std::net::SocketAddr;
 use std::num::NonZeroU32;

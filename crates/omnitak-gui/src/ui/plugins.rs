@@ -1,9 +1,9 @@
 //! Plugin management UI panel
 
-use crate::{ApiClient, AppState, StatusLevel};
 use crate::api_client::{LoadPluginRequest, PluginApiType, PluginMetricsResponse};
+use crate::{ApiClient, AppState, StatusLevel};
 use eframe::egui;
-use omnitak_plugin_api::{PluginInfo, PluginCapability};
+use omnitak_plugin_api::{PluginCapability, PluginInfo};
 use poll_promise::Promise;
 use std::sync::{Arc, Mutex};
 
@@ -119,7 +119,8 @@ pub fn render_plugins_panel(
                     panel_state.last_refresh = std::time::Instant::now();
                 }
                 Err(e) => {
-                    status_message = Some((format!("Failed to load plugins: {}", e), StatusLevel::Error));
+                    status_message =
+                        Some((format!("Failed to load plugins: {}", e), StatusLevel::Error));
                 }
             }
             panel_state.list_promise = None;
@@ -153,7 +154,8 @@ pub fn render_plugins_panel(
                     panel_state.cached_metrics = Some(metrics.clone());
                 }
                 Err(e) => {
-                    status_message = Some((format!("Failed to load metrics: {}", e), StatusLevel::Error));
+                    status_message =
+                        Some((format!("Failed to load metrics: {}", e), StatusLevel::Error));
                 }
             }
             panel_state.metrics_promise = None;
@@ -161,8 +163,8 @@ pub fn render_plugins_panel(
     }
 
     // Auto-refresh on first load or every 30 seconds
-    let should_refresh = panel_state.cached_plugins.is_empty()
-        || panel_state.last_refresh.elapsed().as_secs() > 30;
+    let should_refresh =
+        panel_state.cached_plugins.is_empty() || panel_state.last_refresh.elapsed().as_secs() > 30;
 
     if should_refresh && panel_state.list_promise.is_none() {
         if let Some(client) = api_client {
@@ -196,7 +198,8 @@ pub fn render_plugins_panel(
             if ui.button("Reload All").clicked() {
                 if let Some(client) = api_client {
                     panel_state.operation_promise = Some(spawn_reload_all(client.clone()));
-                    status_message = Some(("Reloading all plugins...".to_string(), StatusLevel::Info));
+                    status_message =
+                        Some(("Reloading all plugins...".to_string(), StatusLevel::Info));
                 }
             }
 
@@ -224,8 +227,16 @@ pub fn render_plugins_panel(
             .selected_text(format!("{:?}", panel_state.type_filter))
             .show_ui(ui, |ui| {
                 ui.selectable_value(&mut panel_state.type_filter, PluginTypeFilter::All, "All");
-                ui.selectable_value(&mut panel_state.type_filter, PluginTypeFilter::Filter, "Filter");
-                ui.selectable_value(&mut panel_state.type_filter, PluginTypeFilter::Transformer, "Transformer");
+                ui.selectable_value(
+                    &mut panel_state.type_filter,
+                    PluginTypeFilter::Filter,
+                    "Filter",
+                );
+                ui.selectable_value(
+                    &mut panel_state.type_filter,
+                    PluginTypeFilter::Transformer,
+                    "Transformer",
+                );
             });
     });
 
@@ -355,9 +366,17 @@ fn render_plugin_card(
                                 if ui.checkbox(&mut enabled, "Enabled").changed() {
                                     if let Some(client) = api_client {
                                         let plugin_id = plugin.id.clone();
-                                        panel_state.operation_promise = Some(spawn_toggle_plugin(client.clone(), plugin_id.clone(), enabled));
+                                        panel_state.operation_promise = Some(spawn_toggle_plugin(
+                                            client.clone(),
+                                            plugin_id.clone(),
+                                            enabled,
+                                        ));
                                         status_message = Some((
-                                            format!("Plugin {} {}", plugin_id, if enabled { "enabled" } else { "disabled" }),
+                                            format!(
+                                                "Plugin {} {}",
+                                                plugin_id,
+                                                if enabled { "enabled" } else { "disabled" }
+                                            ),
                                             StatusLevel::Info,
                                         ));
                                     }
@@ -375,17 +394,25 @@ fn render_plugin_card(
                         // Capability badges
                         for cap in &plugin.capabilities {
                             let (text, color) = match cap {
-                                PluginCapability::Filter => ("Filter", egui::Color32::from_rgb(100, 149, 237)),
-                                PluginCapability::Transform => ("Transform", egui::Color32::from_rgb(144, 238, 144)),
-                                PluginCapability::NetworkAccess => ("Network", egui::Color32::from_rgb(255, 165, 0)),
-                                PluginCapability::FilesystemAccess => ("Filesystem", egui::Color32::from_rgb(255, 99, 71)),
+                                PluginCapability::Filter => {
+                                    ("Filter", egui::Color32::from_rgb(100, 149, 237))
+                                }
+                                PluginCapability::Transform => {
+                                    ("Transform", egui::Color32::from_rgb(144, 238, 144))
+                                }
+                                PluginCapability::NetworkAccess => {
+                                    ("Network", egui::Color32::from_rgb(255, 165, 0))
+                                }
+                                PluginCapability::FilesystemAccess => {
+                                    ("Filesystem", egui::Color32::from_rgb(255, 99, 71))
+                                }
                             };
 
                             ui.label(
                                 egui::RichText::new(text)
                                     .small()
                                     .background_color(color)
-                                    .color(egui::Color32::WHITE)
+                                    .color(egui::Color32::WHITE),
                             );
                         }
                     });
@@ -405,14 +432,18 @@ fn render_plugin_card(
                             if ui.button("Metrics").clicked() {
                                 panel_state.selected_plugin = Some(plugin.id.clone());
                                 if let Some(client) = api_client {
-                                    panel_state.metrics_promise = Some(spawn_get_metrics(client.clone(), plugin.id.clone()));
+                                    panel_state.metrics_promise =
+                                        Some(spawn_get_metrics(client.clone(), plugin.id.clone()));
                                 }
                             }
 
                             if ui.button("Reload").clicked() {
                                 if let Some(client) = api_client {
                                     let plugin_id = plugin.id.clone();
-                                    panel_state.operation_promise = Some(spawn_reload_plugin(client.clone(), plugin_id.clone()));
+                                    panel_state.operation_promise = Some(spawn_reload_plugin(
+                                        client.clone(),
+                                        plugin_id.clone(),
+                                    ));
                                     status_message = Some((
                                         format!("Reloading plugin: {}", plugin_id),
                                         StatusLevel::Info,
@@ -420,18 +451,25 @@ fn render_plugin_card(
                                 }
                             }
 
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.button("Unload").clicked() {
-                                    if let Some(client) = api_client {
-                                        let plugin_id = plugin.id.clone();
-                                        panel_state.operation_promise = Some(spawn_unload_plugin(client.clone(), plugin_id.clone()));
-                                        status_message = Some((
-                                            format!("Unloading plugin: {}", plugin_id),
-                                            StatusLevel::Warning,
-                                        ));
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.button("Unload").clicked() {
+                                        if let Some(client) = api_client {
+                                            let plugin_id = plugin.id.clone();
+                                            panel_state.operation_promise =
+                                                Some(spawn_unload_plugin(
+                                                    client.clone(),
+                                                    plugin_id.clone(),
+                                                ));
+                                            status_message = Some((
+                                                format!("Unloading plugin: {}", plugin_id),
+                                                StatusLevel::Warning,
+                                            ));
+                                        }
                                     }
-                                }
-                            });
+                                },
+                            );
                         });
                     });
                 });
@@ -475,31 +513,66 @@ fn render_plugin_metrics(ui: &mut egui::Ui, plugin: &PluginInfo, panel_state: &P
         .striped(true)
         .show(ui, |ui| {
             ui.label("Executions:");
-            ui.label(metrics.as_ref().map(|m| m.execution_count.to_string()).unwrap_or_else(|| "N/A".to_string()));
+            ui.label(
+                metrics
+                    .as_ref()
+                    .map(|m| m.execution_count.to_string())
+                    .unwrap_or_else(|| "N/A".to_string()),
+            );
             ui.end_row();
 
             ui.label("Errors:");
-            ui.label(metrics.as_ref().map(|m| m.error_count.to_string()).unwrap_or_else(|| "N/A".to_string()));
+            ui.label(
+                metrics
+                    .as_ref()
+                    .map(|m| m.error_count.to_string())
+                    .unwrap_or_else(|| "N/A".to_string()),
+            );
             ui.end_row();
 
             ui.label("Timeouts:");
-            ui.label(metrics.as_ref().map(|m| m.timeout_count.to_string()).unwrap_or_else(|| "N/A".to_string()));
+            ui.label(
+                metrics
+                    .as_ref()
+                    .map(|m| m.timeout_count.to_string())
+                    .unwrap_or_else(|| "N/A".to_string()),
+            );
             ui.end_row();
 
             ui.label("Avg Execution Time:");
-            ui.label(metrics.as_ref().map(|m| format!("{:.2} ms", m.avg_execution_time_ms)).unwrap_or_else(|| "N/A".to_string()));
+            ui.label(
+                metrics
+                    .as_ref()
+                    .map(|m| format!("{:.2} ms", m.avg_execution_time_ms))
+                    .unwrap_or_else(|| "N/A".to_string()),
+            );
             ui.end_row();
 
             ui.label("P95 Execution Time:");
-            ui.label(metrics.as_ref().map(|m| format!("{:.2} ms", m.p95_execution_time_ms)).unwrap_or_else(|| "N/A".to_string()));
+            ui.label(
+                metrics
+                    .as_ref()
+                    .map(|m| format!("{:.2} ms", m.p95_execution_time_ms))
+                    .unwrap_or_else(|| "N/A".to_string()),
+            );
             ui.end_row();
 
             ui.label("P99 Execution Time:");
-            ui.label(metrics.as_ref().map(|m| format!("{:.2} ms", m.p99_execution_time_ms)).unwrap_or_else(|| "N/A".to_string()));
+            ui.label(
+                metrics
+                    .as_ref()
+                    .map(|m| format!("{:.2} ms", m.p99_execution_time_ms))
+                    .unwrap_or_else(|| "N/A".to_string()),
+            );
             ui.end_row();
 
             ui.label("Last Execution:");
-            ui.label(metrics.as_ref().and_then(|m| m.last_execution.clone()).unwrap_or_else(|| "Never".to_string()));
+            ui.label(
+                metrics
+                    .as_ref()
+                    .and_then(|m| m.last_execution.clone())
+                    .unwrap_or_else(|| "Never".to_string()),
+            );
             ui.end_row();
 
             if let Some(ref m) = metrics {
@@ -566,7 +639,11 @@ fn render_load_plugin_dialog(
                 .selected_text(&dialog.plugin_type)
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut dialog.plugin_type, "filter".to_string(), "Filter");
-                    ui.selectable_value(&mut dialog.plugin_type, "transformer".to_string(), "Transformer");
+                    ui.selectable_value(
+                        &mut dialog.plugin_type,
+                        "transformer".to_string(),
+                        "Transformer",
+                    );
                 });
             ui.end_row();
 
@@ -623,7 +700,7 @@ fn render_config_editor_dialog(
                 egui::TextEdit::multiline(&mut dialog.config_json)
                     .font(egui::TextStyle::Monospace)
                     .desired_width(f32::INFINITY)
-                    .desired_rows(15)
+                    .desired_rows(15),
             );
         });
 
@@ -662,7 +739,8 @@ fn render_config_editor_dialog(
                     "center_lon": -79.0,
                     "radius_degrees": 2.0,
                     "enabled": true
-                })).unwrap();
+                }))
+                .unwrap();
             }
         });
     });
@@ -695,7 +773,9 @@ fn filter_plugins(plugins: &[PluginInfo], panel_state: &PluginPanelState) -> Vec
             match panel_state.type_filter {
                 PluginTypeFilter::All => true,
                 PluginTypeFilter::Filter => p.capabilities.contains(&PluginCapability::Filter),
-                PluginTypeFilter::Transformer => p.capabilities.contains(&PluginCapability::Transform),
+                PluginTypeFilter::Transformer => {
+                    p.capabilities.contains(&PluginCapability::Transform)
+                }
             }
         })
         .cloned()
@@ -706,19 +786,22 @@ fn filter_plugins(plugins: &[PluginInfo], panel_state: &PluginPanelState) -> Vec
 fn spawn_list_plugins(client: ApiClient) -> Promise<Result<Vec<PluginInfo>, String>> {
     Promise::spawn_thread("list_plugins", move || {
         let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-        rt.block_on(async {
-            client.list_plugins().await.map_err(|e| e.to_string())
-        })
+        rt.block_on(async { client.list_plugins().await.map_err(|e| e.to_string()) })
     })
 }
 
 /// Spawn async task to load a plugin
-fn spawn_load_plugin(client: ApiClient, request: LoadPluginRequest) -> Promise<Result<String, String>> {
+fn spawn_load_plugin(
+    client: ApiClient,
+    request: LoadPluginRequest,
+) -> Promise<Result<String, String>> {
     let plugin_id = request.id.clone();
     Promise::spawn_thread("load_plugin", move || {
         let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
         rt.block_on(async {
-            client.load_plugin(request).await
+            client
+                .load_plugin(request)
+                .await
                 .map(|_| format!("Plugin {} loaded successfully", plugin_id))
                 .map_err(|e| e.to_string())
         })
@@ -731,7 +814,9 @@ fn spawn_unload_plugin(client: ApiClient, plugin_id: String) -> Promise<Result<S
     Promise::spawn_thread("unload_plugin", move || {
         let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
         rt.block_on(async {
-            client.unload_plugin(&id).await
+            client
+                .unload_plugin(&id)
+                .await
                 .map(|_| format!("Plugin {} unloaded successfully", id))
                 .map_err(|e| e.to_string())
         })
@@ -744,7 +829,9 @@ fn spawn_reload_plugin(client: ApiClient, plugin_id: String) -> Promise<Result<S
     Promise::spawn_thread("reload_plugin", move || {
         let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
         rt.block_on(async {
-            client.reload_plugin(&id).await
+            client
+                .reload_plugin(&id)
+                .await
                 .map(|_| format!("Plugin {} reloaded successfully", id))
                 .map_err(|e| e.to_string())
         })
@@ -756,7 +843,9 @@ fn spawn_reload_all(client: ApiClient) -> Promise<Result<String, String>> {
     Promise::spawn_thread("reload_all_plugins", move || {
         let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
         rt.block_on(async {
-            client.reload_all_plugins().await
+            client
+                .reload_all_plugins()
+                .await
                 .map(|_| "All plugins reloaded successfully".to_string())
                 .map_err(|e| e.to_string())
         })
@@ -764,35 +853,59 @@ fn spawn_reload_all(client: ApiClient) -> Promise<Result<String, String>> {
 }
 
 /// Spawn async task to toggle plugin enabled state
-fn spawn_toggle_plugin(client: ApiClient, plugin_id: String, enabled: bool) -> Promise<Result<String, String>> {
+fn spawn_toggle_plugin(
+    client: ApiClient,
+    plugin_id: String,
+    enabled: bool,
+) -> Promise<Result<String, String>> {
     let id = plugin_id.clone();
     Promise::spawn_thread("toggle_plugin", move || {
         let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
         rt.block_on(async {
-            client.toggle_plugin(&id, enabled).await
-                .map(|_| format!("Plugin {} {}", id, if enabled { "enabled" } else { "disabled" }))
+            client
+                .toggle_plugin(&id, enabled)
+                .await
+                .map(|_| {
+                    format!(
+                        "Plugin {} {}",
+                        id,
+                        if enabled { "enabled" } else { "disabled" }
+                    )
+                })
                 .map_err(|e| e.to_string())
         })
     })
 }
 
 /// Spawn async task to get plugin metrics
-fn spawn_get_metrics(client: ApiClient, plugin_id: String) -> Promise<Result<PluginMetricsResponse, String>> {
+fn spawn_get_metrics(
+    client: ApiClient,
+    plugin_id: String,
+) -> Promise<Result<PluginMetricsResponse, String>> {
     Promise::spawn_thread("get_plugin_metrics", move || {
         let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
         rt.block_on(async {
-            client.get_plugin_metrics(&plugin_id).await.map_err(|e| e.to_string())
+            client
+                .get_plugin_metrics(&plugin_id)
+                .await
+                .map_err(|e| e.to_string())
         })
     })
 }
 
 /// Spawn async task to update plugin config
-fn spawn_update_config(client: ApiClient, plugin_id: String, config: serde_json::Value) -> Promise<Result<String, String>> {
+fn spawn_update_config(
+    client: ApiClient,
+    plugin_id: String,
+    config: serde_json::Value,
+) -> Promise<Result<String, String>> {
     let id = plugin_id.clone();
     Promise::spawn_thread("update_plugin_config", move || {
         let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
         rt.block_on(async {
-            client.update_plugin_config(&id, config).await
+            client
+                .update_plugin_config(&id, config)
+                .await
                 .map(|_| format!("Configuration updated for plugin {}", id))
                 .map_err(|e| e.to_string())
         })

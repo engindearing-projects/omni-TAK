@@ -69,9 +69,12 @@ impl MessageFilterPlugin {
             .map_err(|e| OmniTAKError::PluginError(e.to_string()))?;
 
         // Add our custom bindings
-        bindings::MessageFilterPlugin::add_to_linker::<_, HasSelf<_>>(&mut linker, |state: &mut PluginHost| state)
-            .context("Failed to add plugin bindings")
-            .map_err(|e| OmniTAKError::PluginError(e.to_string()))?;
+        bindings::MessageFilterPlugin::add_to_linker::<_, HasSelf<_>>(
+            &mut linker,
+            |state: &mut PluginHost| state,
+        )
+        .context("Failed to add plugin bindings")
+        .map_err(|e| OmniTAKError::PluginError(e.to_string()))?;
 
         // Instantiate the plugin
         let plugin = bindings::MessageFilterPlugin::instantiate(&mut store, &component, &linker)
@@ -99,7 +102,9 @@ impl MessageFilterPlugin {
             .call_initialize(&mut store, &init_config)
             .context("Failed to call plugin initialize")
             .map_err(|e| OmniTAKError::PluginError(e.to_string()))?
-            .map_err(|e| OmniTAKError::PluginError(format!("Plugin initialization failed: {}", e)))?;
+            .map_err(|e| {
+                OmniTAKError::PluginError(format!("Plugin initialization failed: {}", e))
+            })?;
 
         tracing::info!(
             "Loaded plugin: {} v{} from {}",
@@ -124,11 +129,7 @@ impl MessageFilterPlugin {
     ///
     /// # Returns
     /// `FilterResult` indicating what action to take
-    pub fn filter_message(
-        &mut self,
-        xml: &str,
-        metadata: MessageMetadata,
-    ) -> Result<FilterResult> {
+    pub fn filter_message(&mut self, xml: &str, metadata: MessageMetadata) -> Result<FilterResult> {
         use bindings::exports::omnitak::plugins::message_filter;
 
         let wasm_metadata = message_filter::MessageMetadata {
@@ -159,7 +160,11 @@ impl MessageFilterPlugin {
     }
 
     /// Reload this plugin from disk.
-    pub fn reload(&mut self, config: HashMap<String, String>, servers: Vec<ServerConfig>) -> Result<()> {
+    pub fn reload(
+        &mut self,
+        config: HashMap<String, String>,
+        servers: Vec<ServerConfig>,
+    ) -> Result<()> {
         // Shutdown the current instance
         let _ = self
             .plugin
@@ -263,7 +268,10 @@ impl PluginManager {
         let mut loaded = 0;
 
         if !self.plugin_dir.exists() {
-            tracing::warn!("Plugin directory does not exist: {}", self.plugin_dir.display());
+            tracing::warn!(
+                "Plugin directory does not exist: {}",
+                self.plugin_dir.display()
+            );
             return Ok(0);
         }
 
@@ -312,7 +320,10 @@ impl PluginManager {
             tracing::info!("Unloaded plugin: {}", name);
             Ok(())
         } else {
-            Err(OmniTAKError::PluginError(format!("Plugin not found: {}", name)))
+            Err(OmniTAKError::PluginError(format!(
+                "Plugin not found: {}",
+                name
+            )))
         }
     }
 
@@ -322,7 +333,10 @@ impl PluginManager {
             plugin.reload(self.config.clone(), self.servers.clone())?;
             Ok(())
         } else {
-            Err(OmniTAKError::PluginError(format!("Plugin not found: {}", name)))
+            Err(OmniTAKError::PluginError(format!(
+                "Plugin not found: {}",
+                name
+            )))
         }
     }
 
@@ -345,7 +359,11 @@ impl PluginManager {
     ///
     /// Plugins are applied in insertion order. If any plugin drops the message,
     /// processing stops and None is returned.
-    pub fn filter_message(&mut self, xml: &str, metadata: MessageMetadata) -> Result<Option<String>> {
+    pub fn filter_message(
+        &mut self,
+        xml: &str,
+        metadata: MessageMetadata,
+    ) -> Result<Option<String>> {
         let mut current_xml = xml.to_string();
 
         for (name, plugin) in &mut self.plugins {
@@ -364,7 +382,9 @@ impl PluginManager {
                     tracing::debug!(
                         "Message dropped by plugin {}: {}",
                         name,
-                        result.reason.unwrap_or_else(|| "no reason given".to_string())
+                        result
+                            .reason
+                            .unwrap_or_else(|| "no reason given".to_string())
                     );
                     return Ok(None);
                 }
@@ -415,14 +435,12 @@ mod tests {
     #[test]
     fn test_plugin_manager_creation() {
         let config = HashMap::new();
-        let servers = vec![
-            ServerConfig::builder()
-                .name("test-server")
-                .host("localhost")
-                .port(8089)
-                .protocol(Protocol::Tcp)
-                .build(),
-        ];
+        let servers = vec![ServerConfig::builder()
+            .name("test-server")
+            .host("localhost")
+            .port(8089)
+            .protocol(Protocol::Tcp)
+            .build()];
 
         let manager = PluginManager::new("/tmp/plugins", config, servers);
         assert_eq!(manager.list_plugins().len(), 0);

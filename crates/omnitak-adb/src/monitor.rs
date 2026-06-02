@@ -96,7 +96,9 @@ impl DeviceMonitor {
         // Find removed devices (disconnected)
         for serial in tracked.difference(&current_devices) {
             info!("Device disconnected: {}", serial);
-            let _ = self.event_tx.send(DeviceEvent::Disconnected(serial.clone()));
+            let _ = self
+                .event_tx
+                .send(DeviceEvent::Disconnected(serial.clone()));
         }
 
         // Update tracked devices

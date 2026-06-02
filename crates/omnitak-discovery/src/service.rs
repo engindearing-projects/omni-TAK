@@ -114,7 +114,11 @@ impl DiscoveryService {
         self.running.store(false, Ordering::SeqCst);
 
         // Cancel all background tasks
-        let tasks = self.tasks.iter().map(|entry| entry.key().clone()).collect::<Vec<_>>();
+        let tasks = self
+            .tasks
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect::<Vec<_>>();
         for task_name in tasks {
             if let Some((_, handle)) = self.tasks.remove(&task_name) {
                 handle.abort();
@@ -188,12 +192,13 @@ impl DiscoveryService {
             "Starting browser"
         );
 
-        let receiver = self.mdns.browse(&service_string).map_err(|e| {
-            DiscoveryError::BrowseFailed {
-                service_type: service_string.clone(),
-                reason: e.to_string(),
-            }
-        })?;
+        let receiver =
+            self.mdns
+                .browse(&service_string)
+                .map_err(|e| DiscoveryError::BrowseFailed {
+                    service_type: service_string.clone(),
+                    reason: e.to_string(),
+                })?;
 
         // Spawn task to handle browse events
         let services = self.services.clone();
@@ -304,11 +309,10 @@ impl DiscoveryService {
 
     /// Starts announcing this aggregator as a discoverable service
     async fn start_announcement(&self) -> Result<()> {
-        let instance_name = self
-            .config
-            .instance_name
-            .clone()
-            .unwrap_or_else(|| format!("OmniTAK-{}", hostname::get().unwrap().to_string_lossy()));
+        let instance_name =
+            self.config.instance_name.clone().unwrap_or_else(|| {
+                format!("OmniTAK-{}", hostname::get().unwrap().to_string_lossy())
+            });
 
         let service_type = "_tak-aggregator._tcp.local.";
         let port = self.config.announce_port;
@@ -322,7 +326,10 @@ impl DiscoveryService {
         // Create service info with metadata
         let mut properties = HashMap::new();
         properties.insert("version".to_string(), env!("CARGO_PKG_VERSION").to_string());
-        properties.insert("description".to_string(), "OmniTAK Server Aggregator".to_string());
+        properties.insert(
+            "description".to_string(),
+            "OmniTAK Server Aggregator".to_string(),
+        );
         properties.insert("api".to_string(), "rest+websocket".to_string());
 
         let service_info = ServiceInfo::new(
@@ -339,12 +346,12 @@ impl DiscoveryService {
         })?;
 
         // Register the service
-        self.mdns.register(service_info).map_err(|e| {
-            DiscoveryError::RegisterFailed {
+        self.mdns
+            .register(service_info)
+            .map_err(|e| DiscoveryError::RegisterFailed {
                 service_name: instance_name.clone(),
                 reason: e.to_string(),
-            }
-        })?;
+            })?;
 
         info!("Service announcement registered successfully");
         Ok(())
@@ -374,21 +381,16 @@ impl DiscoveryService {
                         match service.status {
                             ServiceStatus::Active => {
                                 service.mark_stale();
-                                debug!(
-                                    service = service.instance_name,
-                                    "Service marked as stale"
-                                );
+                                debug!(service = service.instance_name, "Service marked as stale");
 
-                                let event = ServiceEvent::new(
-                                    ServiceEventType::Stale,
-                                    service.clone(),
-                                );
+                                let event =
+                                    ServiceEvent::new(ServiceEventType::Stale, service.clone());
                                 let _ = event_tx.send(event).await;
                             }
                             ServiceStatus::Stale => {
                                 // If already stale for twice the timeout, remove it
-                                let remove_threshold = now
-                                    - chrono::Duration::from_std(stale_timeout * 2).unwrap();
+                                let remove_threshold =
+                                    now - chrono::Duration::from_std(stale_timeout * 2).unwrap();
                                 if service.last_seen_at < remove_threshold {
                                     to_remove.push(entry.key().clone());
                                 }

@@ -1,24 +1,24 @@
 //! Authentication and authorization with JWT and API keys
 
 use crate::types::{ErrorResponse, UserRole};
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 use axum::{
-    Json, RequestPartsExt,
     extract::FromRequestParts,
-    http::{StatusCode, request::Parts},
+    http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
+    Json, RequestPartsExt,
 };
 use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
     TypedHeader,
-    headers::{Authorization, authorization::Bearer},
 };
 use chrono::{DateTime, Duration, Utc};
 use dashmap::DashMap;
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;

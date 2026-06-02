@@ -74,9 +74,9 @@ impl DataPackageReader {
 
     /// Read manifest from archive
     fn read_manifest<R: Read + std::io::Seek>(archive: &mut ZipArchive<R>) -> Result<Manifest> {
-        let mut manifest_file = archive.by_name(MANIFEST_PATH).map_err(|_| {
-            DataPackageError::MissingFile(MANIFEST_PATH.to_string())
-        })?;
+        let mut manifest_file = archive
+            .by_name(MANIFEST_PATH)
+            .map_err(|_| DataPackageError::MissingFile(MANIFEST_PATH.to_string()))?;
 
         let mut manifest_xml = String::new();
         manifest_file.read_to_string(&mut manifest_xml)?;
@@ -126,9 +126,9 @@ impl DataPackageReader {
         let file = File::open(&self.source_path)?;
         let mut archive = ZipArchive::new(file)?;
 
-        let mut entry = archive.by_name(zip_entry).map_err(|_| {
-            DataPackageError::MissingFile(zip_entry.to_string())
-        })?;
+        let mut entry = archive
+            .by_name(zip_entry)
+            .map_err(|_| DataPackageError::MissingFile(zip_entry.to_string()))?;
 
         let mut buffer = Vec::new();
         entry.read_to_end(&mut buffer)?;
