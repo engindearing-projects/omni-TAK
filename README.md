@@ -90,6 +90,10 @@ sudo apt install protobuf-compiler
 # 3. Clone the repository
 git clone https://github.com/engindearing-projects/omniTAK.git
 cd omniTAK
+
+# 4. (Contributors) enable the pre-commit hook: runs cargo fmt + clippy,
+#    the same gate as CI, before each commit.
+git config core.hooksPath .githooks
 ```
 
 ### Option A: Docker (fastest)

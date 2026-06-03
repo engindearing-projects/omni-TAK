@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# OmniTAK pre-commit hook: format + clippy gate, matching CI.
+# Activate once per clone with:  git config core.hooksPath .githooks
+set -euo pipefail
+
+# Only run Rust checks when Rust/Cargo files are staged (skip docs-only commits).
+if ! git diff --cached --name-only --diff-filter=ACM \
+     | grep -qE '\.rs$|(^|/)Cargo\.(toml|lock)$'; then
+  exit 0
+fi
+
+echo "pre-commit: cargo fmt --check"
+if ! cargo fmt --all -- --check; then
+  echo "✗ Formatting issues. Run 'cargo fmt --all' and re-stage." >&2
+  exit 1
+fi
+
+echo "pre-commit: cargo clippy (CI policy)"
+if ! cargo clippy --workspace --exclude omnitak-gui --all-targets --no-default-features -- \
+     -D warnings \
+     -A dead_code \
+     -A clippy::type_complexity \
+     -A clippy::too_many_arguments \
+     -A clippy::wrong_self_convention; then
+  echo "✗ Clippy found issues. Fix them (many: 'cargo clippy --fix') before committing." >&2
+  echo "  To bypass in an emergency: git commit --no-verify" >&2
+  exit 1
+fi
+
+echo "pre-commit: OK"
