@@ -352,7 +352,7 @@ impl TcpListener {
 
     /// Handle an accepted TCP connection
     async fn handle_connection(
-        mut stream: TcpStream,
+        stream: TcpStream,
         remote_addr: SocketAddr,
         pool: Arc<ConnectionPool>,
         aggregator: Arc<MessageAggregator>,

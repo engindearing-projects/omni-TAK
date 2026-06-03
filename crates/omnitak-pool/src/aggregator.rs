@@ -4,7 +4,6 @@
 //! with time-based deduplication window, and forwards unique messages
 //! to the distributor.
 
-use anyhow::Result;
 use dashmap::DashMap;
 use flume::{Receiver, Sender};
 use std::collections::VecDeque;
@@ -253,12 +252,13 @@ impl MessageAggregator {
     pub async fn start(&self) {
         info!("Starting message aggregator");
 
-        // Spawn worker tasks
-        let mut workers = self.workers.write();
+        // Spawn worker tasks, then store the handles. Collect first so the
+        // workers lock isn't held across the spawn_worker await points.
+        let mut handles = Vec::with_capacity(self.config.worker_count);
         for worker_id in 0..self.config.worker_count {
-            let handle = self.spawn_worker(worker_id).await;
-            workers.push(handle);
+            handles.push(self.spawn_worker(worker_id).await);
         }
+        self.workers.write().extend(handles);
 
         // Spawn cleanup task
         let cleanup_handle = self.spawn_cleanup_task().await;
@@ -377,8 +377,10 @@ impl MessageAggregator {
     pub async fn stop(&self) {
         info!("Stopping message aggregator");
 
-        // Stop cleanup task
-        if let Some(task) = self.cleanup_task.write().take() {
+        // Stop cleanup task (take the handle out before awaiting so the lock
+        // isn't held across .await).
+        let cleanup = self.cleanup_task.write().take();
+        if let Some(task) = cleanup {
             task.abort();
             let _ = task.await;
         }

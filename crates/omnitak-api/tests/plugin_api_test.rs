@@ -19,11 +19,7 @@ use axum::{
 use omnitak_api::{
     auth::{AuthConfig, AuthService},
     middleware::AuditLogger,
-    rest::plugins::{
-        create_plugin_router, LoadPluginRequest, PluginApiState, PluginDetailsResponse,
-        PluginHealthResponse, PluginListResponse, PluginMetricsResponse, PluginType,
-        TogglePluginRequest, UpdatePluginConfigRequest,
-    },
+    rest::plugins::{create_plugin_router, PluginApiState, PluginListResponse},
     types::UserRole,
 };
 use omnitak_plugin_api::{PluginManager, PluginManagerConfig};

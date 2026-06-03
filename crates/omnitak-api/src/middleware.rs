@@ -1,9 +1,7 @@
 //! Middleware for logging, CORS, rate limiting, and security headers
 
-use crate::auth::AuthService;
 use crate::types::{AuditLogEntry, ErrorResponse, UserRole};
 use axum::{
-    body::Body,
     extract::{ConnectInfo, Request, State},
     http::{HeaderValue, StatusCode},
     middleware::Next,

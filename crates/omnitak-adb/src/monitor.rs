@@ -109,10 +109,10 @@ impl DeviceMonitor {
 
     /// Get an event receiver
     pub fn subscribe(&self) -> mpsc::UnboundedReceiver<DeviceEvent> {
-        let (tx, rx) = mpsc::unbounded_channel();
+        let (_tx, rx) = mpsc::unbounded_channel();
 
         // Clone events to new subscriber
-        let event_tx = self.event_tx.clone();
+        let _event_tx = self.event_tx.clone();
         tokio::spawn(async move {
             // Forward events to new subscriber
             // Note: This is a simple implementation; for production, consider using tokio::sync::broadcast

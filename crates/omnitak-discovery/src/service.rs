@@ -44,9 +44,7 @@ impl DiscoveryService {
     /// Creates a new discovery service
     pub fn new(config: DiscoveryConfig) -> Result<Self> {
         // Validate configuration
-        config
-            .validate()
-            .map_err(|e| DiscoveryError::InvalidConfig(e))?;
+        config.validate().map_err(DiscoveryError::InvalidConfig)?;
 
         // Create mDNS daemon
         let mdns = ServiceDaemon::new().map_err(|e| {

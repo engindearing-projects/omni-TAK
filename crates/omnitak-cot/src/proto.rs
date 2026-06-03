@@ -300,6 +300,7 @@ mod tests {
                 status: None,
                 takv: None,
                 track: None,
+                ..Default::default()
             }),
         }
     }

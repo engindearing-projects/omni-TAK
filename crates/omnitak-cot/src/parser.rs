@@ -263,7 +263,7 @@ fn tak_message_to_event(tak_message: pb::TakMessage) -> Result<Event, ParseError
 fn millis_to_datetime(millis: u64) -> DateTime<Utc> {
     let secs = (millis / 1000) as i64;
     let nanos = ((millis % 1000) * 1_000_000) as u32;
-    DateTime::from_timestamp(secs, nanos).unwrap_or_else(|| DateTime::UNIX_EPOCH)
+    DateTime::from_timestamp(secs, nanos).unwrap_or(DateTime::UNIX_EPOCH)
 }
 
 /// Parse a CoT message from XML bytes (zero-copy where possible)
@@ -559,16 +559,13 @@ fn parse_status(element: &quick_xml::events::BytesStart) -> Result<Status, Parse
 
     for attr in element.attributes() {
         let attr = attr.map_err(|e| ParseError::XmlError(quick_xml::Error::InvalidAttr(e)))?;
-        match attr.key.as_ref() {
-            b"battery" => {
-                let battery_str = String::from_utf8_lossy(attr.value.as_ref());
-                battery = Some(
-                    battery_str
-                        .parse::<u32>()
-                        .map_err(|_| ParseError::InvalidNumber(battery_str.to_string()))?,
-                );
-            }
-            _ => {}
+        if attr.key.as_ref() == b"battery" {
+            let battery_str = String::from_utf8_lossy(attr.value.as_ref());
+            battery = Some(
+                battery_str
+                    .parse::<u32>()
+                    .map_err(|_| ParseError::InvalidNumber(battery_str.to_string()))?,
+            );
         }
     }
 
