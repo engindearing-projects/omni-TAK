@@ -53,6 +53,14 @@ pub struct Connection {
     pub created_at: Instant,
 }
 
+/// Byte length of a CoT payload carried by a pool message (0 for control messages).
+fn cot_byte_len(message: &PoolMessage) -> u64 {
+    match message {
+        PoolMessage::Cot(data) => data.len() as u64,
+        _ => 0,
+    }
+}
+
 /// Runtime connection state
 #[derive(Debug)]
 pub struct ConnectionState {
@@ -64,6 +72,10 @@ pub struct ConnectionState {
     pub messages_sent: AtomicU64,
     /// Total messages received
     pub messages_received: AtomicU64,
+    /// Total bytes sent
+    pub bytes_sent: AtomicU64,
+    /// Total bytes received
+    pub bytes_received: AtomicU64,
     /// Connection errors
     pub errors: AtomicU64,
     /// Last error message
@@ -77,6 +89,8 @@ impl ConnectionState {
             last_message: AtomicU64::new(0),
             messages_sent: AtomicU64::new(0),
             messages_received: AtomicU64::new(0),
+            bytes_sent: AtomicU64::new(0),
+            bytes_received: AtomicU64::new(0),
             errors: AtomicU64::new(0),
             last_error: RwLock::new(None),
         }
@@ -240,6 +254,9 @@ impl ConnectionPool {
                         match msg {
                             Ok(PoolMessage::Cot(data)) => {
                                 state_clone.record_received();
+                                state_clone
+                                    .bytes_received
+                                    .fetch_add(data.len() as u64, Ordering::Relaxed);
                                 metrics.record_message_received();
 
                                 // Forward to outbound channel
@@ -384,6 +401,7 @@ impl ConnectionPool {
     pub async fn send_to_connection(&self, id: &ConnectionId, message: PoolMessage) -> Result<()> {
         let connection = self.get_connection(id).context("Connection not found")?;
 
+        let bytes = cot_byte_len(&message);
         connection
             .tx
             .send_async(message)
@@ -391,6 +409,10 @@ impl ConnectionPool {
             .context("Failed to send message to connection")?;
 
         connection.state.record_sent();
+        connection
+            .state
+            .bytes_sent
+            .fetch_add(bytes, Ordering::Relaxed);
         self.metrics.record_message_sent();
 
         Ok(())
@@ -399,12 +421,17 @@ impl ConnectionPool {
     /// Broadcast message to all active connections
     pub async fn broadcast(&self, message: PoolMessage) -> usize {
         let connections = self.get_active_connections();
+        let bytes = cot_byte_len(&message);
         let mut sent_count = 0;
 
         for connection in connections {
             match connection.tx.send_async(message.clone()).await {
                 Ok(_) => {
                     connection.state.record_sent();
+                    connection
+                        .state
+                        .bytes_sent
+                        .fetch_add(bytes, Ordering::Relaxed);
                     self.metrics.record_message_sent();
                     sent_count += 1;
                 }

@@ -294,6 +294,8 @@ fn overlay_live_counts(pool: &ConnectionPool, conn: &mut ConnectionInfo) {
     if let Some(c) = pool.get_connection(&conn.id.to_string()) {
         conn.messages_received = c.state.messages_received.load(Ordering::Relaxed);
         conn.messages_sent = c.state.messages_sent.load(Ordering::Relaxed);
+        conn.bytes_received = c.state.bytes_received.load(Ordering::Relaxed);
+        conn.bytes_sent = c.state.bytes_sent.load(Ordering::Relaxed);
     }
 }
 
@@ -590,7 +592,12 @@ async fn create_connection(
                     .tls_ca_cert_pem_b64
                     .clone()
                     .map(|c| mk(c, "ca-cert"));
-                TlsClientConfig::from_memory(cert_data, key_data, ca_data, None)
+                TlsClientConfig::from_memory(
+                    cert_data,
+                    key_data,
+                    ca_data,
+                    request.tls_cert_password.clone(),
+                )
             } else {
                 let cert_path = request.tls_cert_path.clone().ok_or_else(|| {
                     ApiError::BadRequest(
