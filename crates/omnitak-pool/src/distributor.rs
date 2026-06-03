@@ -371,9 +371,12 @@ impl MessageDistributor {
     pub async fn stop(&self) {
         info!("Stopping message distributor");
 
-        // Wait for all workers to finish
-        let mut workers = self.workers.write();
-        for handle in workers.drain(..) {
+        // Abort and join all workers. Workers loop on rx.recv_async() forever
+        // (the channel is never closed), so awaiting without aborting deadlocks.
+        // Collect handles first so the lock guard isn't held across .await.
+        let handles: Vec<_> = self.workers.write().drain(..).collect();
+        for handle in handles {
+            handle.abort();
             let _ = handle.await;
         }
 
