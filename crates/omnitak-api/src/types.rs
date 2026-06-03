@@ -179,6 +179,10 @@ pub struct CreateConnectionRequest {
     #[serde(default)]
     pub tls_ca_cert_pem_b64: Option<String>,
 
+    /// Password for an encrypted PKCS#12 client certificate upload.
+    #[serde(default)]
+    pub tls_cert_password: Option<String>,
+
     /// Validate TLS certificates
     #[serde(default = "default_validate_certs")]
     pub validate_certs: bool,

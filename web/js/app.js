@@ -215,6 +215,8 @@ async function handleAddConnection(event) {
         if (certs.client_cert && certs.client_cert.data) connectionData.tls_client_cert_pem_b64 = certs.client_cert.data;
         if (certs.client_key && certs.client_key.data) connectionData.tls_client_key_pem_b64 = certs.client_key.data;
         if (certs.ca_cert && certs.ca_cert.data) connectionData.tls_ca_cert_pem_b64 = certs.ca_cert.data;
+        const certPassword = document.getElementById('cert-password').value;
+        if (certPassword) connectionData.tls_cert_password = certPassword;
         if (!certs.client_cert || !certs.client_cert.data) {
             showToast('TLS selected but no client certificate uploaded', 'warning');
         }
