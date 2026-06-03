@@ -298,24 +298,24 @@ impl TakClient for UdpClient {
         }
 
         // Leave multicast groups if applicable
-        if self.config.multicast {
-            if let (Some(socket), Some(remote_addr)) = (&self.socket, &self.remote_addr) {
-                match remote_addr.ip() {
-                    IpAddr::V4(multicast_addr) => {
-                        let interface = self
-                            .config
-                            .multicast_interface
-                            .and_then(|ip| match ip {
-                                IpAddr::V4(v4) => Some(v4),
-                                _ => None,
-                            })
-                            .unwrap_or(Ipv4Addr::UNSPECIFIED);
+        if self.config.multicast
+            && let (Some(socket), Some(remote_addr)) = (&self.socket, &self.remote_addr)
+        {
+            match remote_addr.ip() {
+                IpAddr::V4(multicast_addr) => {
+                    let interface = self
+                        .config
+                        .multicast_interface
+                        .and_then(|ip| match ip {
+                            IpAddr::V4(v4) => Some(v4),
+                            _ => None,
+                        })
+                        .unwrap_or(Ipv4Addr::UNSPECIFIED);
 
-                        let _ = socket.leave_multicast_v4(multicast_addr, interface);
-                    }
-                    IpAddr::V6(multicast_addr) => {
-                        let _ = socket.leave_multicast_v6(&multicast_addr, 0);
-                    }
+                    let _ = socket.leave_multicast_v4(multicast_addr, interface);
+                }
+                IpAddr::V6(multicast_addr) => {
+                    let _ = socket.leave_multicast_v6(&multicast_addr, 0);
                 }
             }
         }
@@ -399,6 +399,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)] // intentional invariant check on the constant
     fn test_max_packet_size() {
         assert!(MAX_UDP_PACKET_SIZE <= 1500);
         assert!(MAX_UDP_PACKET_SIZE >= 1400);
@@ -406,9 +407,11 @@ mod tests {
 
     #[test]
     fn test_multicast_config() {
-        let mut config = UdpClientConfig::default();
-        config.multicast = true;
-        config.multicast_ttl = 5;
+        let config = UdpClientConfig {
+            multicast: true,
+            multicast_ttl: 5,
+            ..Default::default()
+        };
         assert_eq!(config.multicast_ttl, 5);
     }
 }

@@ -1,7 +1,7 @@
 //! TAK Data Package builder for creating .dpk/.zip files
 
 use std::fs::File;
-use std::io::{Read, Seek, Write};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
@@ -269,7 +269,6 @@ impl DataPackageBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
 
     #[test]
     fn test_builder_creation() {

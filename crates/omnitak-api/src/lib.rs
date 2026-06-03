@@ -46,7 +46,6 @@ use middleware::{
     cors_layer, logging_middleware, rate_limit_middleware, request_id_middleware,
     security_headers_middleware, timeout_middleware, RateLimitState, ReadinessState,
 };
-use omnitak_cert::generator::CaConfig;
 use omnitak_plugin_api::PluginManager;
 use omnitak_pool::{
     AggregatorConfig, ConnectionPool, DistributionStrategy, DistributorConfig, MessageAggregator,

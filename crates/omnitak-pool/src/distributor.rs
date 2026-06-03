@@ -4,13 +4,13 @@
 //! destinations, and distributes to relevant connections with backpressure
 //! handling for slow consumers.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use flume::{Receiver, Sender};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::task::JoinHandle;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 use crate::metrics::DistributorMetrics;
 use crate::pool::{ConnectionId, ConnectionPool, PoolMessage};
@@ -80,20 +80,15 @@ impl FilterRule {
 }
 
 /// Distribution strategy for handling slow consumers
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DistributionStrategy {
     /// Drop messages if channel is full (default)
+    #[default]
     DropOnFull,
     /// Block until space available (may cause head-of-line blocking)
     BlockOnFull,
     /// Try for timeout, then drop
     TryForTimeout(Duration),
-}
-
-impl Default for DistributionStrategy {
-    fn default() -> Self {
-        Self::DropOnFull
-    }
 }
 
 /// Configuration for message distributor
@@ -179,10 +174,7 @@ impl MessageDistributor {
     /// Add filter rule for a connection
     pub fn add_filter(&self, connection_id: ConnectionId, rule: FilterRule) {
         let mut filters = self.filters.write();
-        filters
-            .entry(connection_id)
-            .or_insert_with(Vec::new)
-            .push(rule);
+        filters.entry(connection_id).or_default().push(rule);
     }
 
     /// Remove all filters for a connection
@@ -201,12 +193,13 @@ impl MessageDistributor {
     pub async fn start(&self) {
         info!("Starting message distributor");
 
-        // Spawn worker tasks
-        let mut workers = self.workers.write();
+        // Spawn worker tasks, then store the handles. Collect first so the
+        // workers lock isn't held across the spawn_worker await points.
+        let mut handles = Vec::with_capacity(self.config.max_workers);
         for worker_id in 0..self.config.max_workers {
-            let handle = self.spawn_worker(worker_id).await;
-            workers.push(handle);
+            handles.push(self.spawn_worker(worker_id).await);
         }
+        self.workers.write().extend(handles);
 
         info!(
             worker_count = self.config.max_workers,

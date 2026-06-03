@@ -853,7 +853,7 @@ impl ResourceLimitsConfig {
 }
 
 /// Sandbox policy configuration for plugins.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SandboxPolicyConfig {
     /// Allow plugins to make network requests
     #[serde(default)]
@@ -874,18 +874,6 @@ pub struct SandboxPolicyConfig {
     /// Allowed filesystem paths (if filesystem access is enabled)
     #[serde(default)]
     pub allowed_paths: Vec<String>,
-}
-
-impl Default for SandboxPolicyConfig {
-    fn default() -> Self {
-        Self {
-            allow_network: false,
-            allow_filesystem_read: false,
-            allow_filesystem_write: false,
-            allow_env_vars: false,
-            allowed_paths: Vec::new(),
-        }
-    }
 }
 
 impl SandboxPolicyConfig {

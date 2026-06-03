@@ -7,18 +7,16 @@ use crate::types::ErrorResponse;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
-    response::IntoResponse,
     routing::{delete, get, post, put},
     Json, Router,
 };
 use omnitak_plugin_api::{
-    FilterMetadata, PluginCapability, PluginInfo, PluginManager, ResourceLimits, SandboxPolicy,
-    TransformerMetadata,
+    FilterMetadata, PluginCapability, PluginInfo, PluginManager, TransformerMetadata,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+use tracing::info;
 use utoipa::ToSchema;
 use validator::Validate;
 
@@ -231,7 +229,7 @@ async fn load_plugin(
 
     info!("Loading plugin: {} from {}", req.id, req.path);
 
-    let mut manager = state.plugin_manager.write().await;
+    let manager = state.plugin_manager.write().await;
 
     // Load based on type
     let plugin_info = match req.plugin_type {
@@ -240,7 +238,7 @@ async fn load_plugin(
             let metadata: FilterMetadata = serde_json::from_value(req.config.clone())
                 .map_err(|e| ApiError::BadRequest(format!("Invalid filter metadata: {}", e)))?;
 
-            let plugin = manager
+            let _plugin = manager
                 .load_filter_plugin(&req.path, metadata)
                 .map_err(|e| ApiError::InternalError(format!("Failed to load plugin: {}", e)))?;
 
@@ -259,7 +257,7 @@ async fn load_plugin(
                     ApiError::BadRequest(format!("Invalid transformer metadata: {}", e))
                 })?;
 
-            let plugin = manager
+            let _plugin = manager
                 .load_transformer_plugin(&req.path, metadata)
                 .map_err(|e| ApiError::InternalError(format!("Failed to load plugin: {}", e)))?;
 
@@ -280,7 +278,7 @@ async fn load_plugin(
         "admin".to_string(),
         crate::types::UserRole::Admin,
         "load_plugin".to_string(),
-        format!("/api/v1/plugins"),
+        "/api/v1/plugins".to_string(),
         serde_json::json!({"plugin_id": req.id, "path": req.path}),
         "0.0.0.0".to_string(), // TODO: Get actual IP from request
         true,
@@ -355,7 +353,7 @@ async fn unload_plugin(
 ) -> Result<StatusCode, ApiError> {
     info!("Unloading plugin: {}", id);
 
-    let mut manager = state.plugin_manager.write().await;
+    let manager = state.plugin_manager.write().await;
 
     manager
         .unload_plugin(&id)

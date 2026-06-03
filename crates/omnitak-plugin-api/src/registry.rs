@@ -222,7 +222,7 @@ impl RegistryClient {
         }
 
         // Sort by downloads (popularity)
-        results.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        results.sort_by_key(|p| std::cmp::Reverse(p.downloads));
 
         results
     }
@@ -239,7 +239,7 @@ impl RegistryClient {
             }
         }
 
-        results.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        results.sort_by_key(|p| std::cmp::Reverse(p.downloads));
         results
     }
 
@@ -253,7 +253,7 @@ impl RegistryClient {
             }
         }
 
-        results.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        results.sort_by_key(|p| std::cmp::Reverse(p.downloads));
         results
     }
 
