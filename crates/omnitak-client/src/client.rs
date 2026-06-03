@@ -182,15 +182,15 @@ where
             Err(e) => {
                 attempt += 1;
 
-                if let Some(max) = config.max_attempts {
-                    if attempt >= max {
-                        error!(
-                            attempt = attempt,
-                            error = %e,
-                            "Max reconnect attempts reached"
-                        );
-                        return Err(e);
-                    }
+                if let Some(max) = config.max_attempts
+                    && attempt >= max
+                {
+                    error!(
+                        attempt = attempt,
+                        error = %e,
+                        "Max reconnect attempts reached"
+                    );
+                    return Err(e);
                 }
 
                 let backoff = calculate_backoff(attempt - 1, config);
@@ -232,6 +232,6 @@ mod tests {
     fn test_default_config() {
         let config = ClientConfig::default();
         assert_eq!(config.connect_timeout, Duration::from_secs(10));
-        assert_eq!(config.reconnect.enabled, true);
+        assert!(config.reconnect.enabled);
     }
 }

@@ -223,7 +223,7 @@ async fn main() -> anyhow::Result<()> {
             }
 
             // Also send some duplicates
-            if counter % 10 == 0 {
+            if counter.is_multiple_of(10) {
                 let duplicate_msg = InboundMessage {
                     data: format!(
                         r#"<event uid="duplicate-{}" type="a-f-G" time="2024-01-01T00:00:00Z"></event>"#,

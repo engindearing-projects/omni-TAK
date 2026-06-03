@@ -173,7 +173,7 @@ fn bench_routing(c: &mut Criterion) {
             format!("Route {}", i),
             Arc::new(AffiliationFilter::friendly_only()),
             vec![format!("dest_{}", i)],
-            100 - i as i32,
+            100 - i,
         ));
     }
 

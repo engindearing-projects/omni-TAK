@@ -310,15 +310,15 @@ impl TakClient for WebSocketClient {
                     Err(e) => {
                         attempt += 1;
 
-                        if let Some(max) = config.max_attempts {
-                            if attempt >= max {
-                                error!(
-                                    attempt = attempt,
-                                    error = %e,
-                                    "Max reconnect attempts reached"
-                                );
-                                break Err(e);
-                            }
+                        if let Some(max) = config.max_attempts
+                            && attempt >= max
+                        {
+                            error!(
+                                attempt = attempt,
+                                error = %e,
+                                "Max reconnect attempts reached"
+                            );
+                            break Err(e);
                         }
 
                         let backoff = calculate_backoff(attempt - 1, &config);

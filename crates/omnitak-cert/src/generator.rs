@@ -445,7 +445,7 @@ fn generate_secure_token() -> String {
         *byte = (state >> 56) as u8;
     }
 
-    BASE64_URL_SAFE_NO_PAD.encode(&bytes)
+    BASE64_URL_SAFE_NO_PAD.encode(bytes)
 }
 
 #[cfg(test)]

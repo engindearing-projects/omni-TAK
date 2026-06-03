@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::task::JoinHandle;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 use crate::pool::{ConnectionId, ConnectionPool, PoolMessage};
 
@@ -328,7 +328,9 @@ impl HealthMonitor {
 
     /// Stop health monitoring
     pub async fn stop(&self) {
-        if let Some(task) = self.task.write().take() {
+        // Take the handle out before awaiting so the lock isn't held across .await.
+        let task = self.task.write().take();
+        if let Some(task) = task {
             task.abort();
             let _ = task.await;
         }

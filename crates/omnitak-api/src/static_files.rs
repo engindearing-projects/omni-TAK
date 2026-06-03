@@ -8,7 +8,6 @@ use axum::{
     Router,
 };
 use rust_embed::RustEmbed;
-use std::borrow::Cow;
 use tracing::debug;
 
 // ============================================================================

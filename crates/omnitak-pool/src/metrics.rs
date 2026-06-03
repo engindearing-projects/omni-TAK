@@ -363,7 +363,6 @@ impl MetricsExporter {
 
         tokio::spawn(async move {
             use std::convert::Infallible;
-            use std::net::SocketAddr;
 
             let make_svc = hyper::service::make_service_fn(move |_conn| {
                 let handle = handle.clone();
@@ -424,6 +423,9 @@ impl MetricsRegistry {
     }
 
     /// Start metrics HTTP server
+    // The exporter is only mutated by init(); holding the read guard for the
+    // lifetime of the server is intentional and does not block any writer.
+    #[allow(clippy::await_holding_lock)]
     pub async fn start_server(&self) -> anyhow::Result<()> {
         self.exporter.read().start_server().await
     }

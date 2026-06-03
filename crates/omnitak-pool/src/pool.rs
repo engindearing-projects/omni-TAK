@@ -393,7 +393,7 @@ impl ConnectionPool {
             .map(|entry| Arc::clone(&*entry))
             .collect();
 
-        connections.sort_by(|a, b| b.priority.cmp(&a.priority));
+        connections.sort_by_key(|c| std::cmp::Reverse(c.priority));
         connections
     }
 

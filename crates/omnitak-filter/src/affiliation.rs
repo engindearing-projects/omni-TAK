@@ -203,31 +203,31 @@ impl<'a> CotType<'a> {
     /// Fast check if this CoT type matches an affiliation
     #[inline]
     pub fn matches_affiliation(&self, target: Affiliation) -> bool {
-        self.affiliation.map_or(false, |a| a == target)
+        self.affiliation == Some(target)
     }
 
     /// Fast check if this CoT type is friendly
     #[inline]
     pub fn is_friendly(&self) -> bool {
-        self.affiliation.map_or(false, |a| a.is_friendly())
+        self.affiliation.is_some_and(|a| a.is_friendly())
     }
 
     /// Fast check if this CoT type is hostile
     #[inline]
     pub fn is_hostile(&self) -> bool {
-        self.affiliation.map_or(false, |a| a.is_hostile())
+        self.affiliation.is_some_and(|a| a.is_hostile())
     }
 
     /// Fast check if this CoT type is neutral
     #[inline]
     pub fn is_neutral(&self) -> bool {
-        self.affiliation.map_or(false, |a| a.is_neutral())
+        self.affiliation.is_some_and(|a| a.is_neutral())
     }
 
     /// Fast check if this CoT type matches a dimension
     #[inline]
     pub fn matches_dimension(&self, target: Dimension) -> bool {
-        self.dimension.map_or(false, |d| d == target)
+        self.dimension == Some(target)
     }
 }
 

@@ -72,16 +72,18 @@ jobs:
     - name: Check formatting
       run: cargo fmt --all -- --check
 
-    # Lint is informational for now (pre-existing warnings). On Linux the GUI
-    # stack (winit) has no headless backend, so lint the server only.
+    # Blocking lint on the server/core crates. The desktop GUI crate (winit has
+    # no headless backend) is linted separately and excluded here. dead_code is
+    # allowed for intentional scaffolding; a few complexity lints are allowed as
+    # tracked tech-debt.
     - name: Clippy
-      continue-on-error: true
       run: |
-        if [ "${{ runner.os }}" = "Linux" ]; then
-          cargo clippy --no-default-features --all-targets
-        else
-          cargo clippy --all-targets --all-features
-        fi
+        cargo clippy --workspace --exclude omnitak-gui --all-targets --no-default-features -- \
+          -D warnings \
+          -A dead_code \
+          -A clippy::type_complexity \
+          -A clippy::too_many_arguments \
+          -A clippy::wrong_self_convention
 
     # On Linux build the headless server (no GUI feature -> no winit).
     - name: Build

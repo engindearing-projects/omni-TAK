@@ -203,6 +203,9 @@ async fn handle_send_messages(
     }
 }
 
+// TODO: the per-client CoT broadcast receiver (`cot_rx`) is tracked here but not
+// yet polled/forwarded to the client — server-push CoT streaming is unfinished.
+#[allow(unused_assignments)]
 async fn handle_receive_stream_messages(
     mut receiver: SplitStream<WebSocket>,
     client_tx: mpsc::UnboundedSender<WsServerMessage>,
@@ -295,7 +298,7 @@ async fn handle_receive_stream_messages(
                 // TODO: Handle binary messages (protobuf/msgpack)
                 warn!(client_id = %client_id, "Binary messages not yet implemented");
             }
-            Ok(Message::Ping(data)) => {
+            Ok(Message::Ping(_data)) => {
                 debug!(client_id = %client_id, "Received ping");
                 // Axum handles pong automatically
             }
@@ -402,7 +405,7 @@ mod tests {
     #[test]
     fn test_ws_state_creation() {
         let auth_service = Arc::new(AuthService::new(AuthConfig::default()));
-        let state = WsState::new(auth_service);
+        let _state = WsState::new(auth_service);
 
         // Test message creation
         let cot_msg = WsState::create_test_cot_message();

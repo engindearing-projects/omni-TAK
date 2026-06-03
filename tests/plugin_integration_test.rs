@@ -33,7 +33,7 @@ fn create_test_client() -> Client {
 /// Login and get auth token
 async fn get_auth_token(client: &Client, username: &str, password: &str) -> String {
     let response = client
-        .post(&format!("{}/api/v1/auth/login", TEST_BASE_URL))
+        .post(format!("{}/api/v1/auth/login", TEST_BASE_URL))
         .json(&json!({
             "username": username,
             "password": password
@@ -57,11 +57,7 @@ async fn get_auth_token(client: &Client, username: &str, password: &str) -> Stri
 /// Wait for server to be ready
 async fn wait_for_server(client: &Client, max_attempts: u32) -> bool {
     for attempt in 1..=max_attempts {
-        match client
-            .get(&format!("{}/health", TEST_BASE_URL))
-            .send()
-            .await
-        {
+        match client.get(format!("{}/health", TEST_BASE_URL)).send().await {
             Ok(response) if response.status() == StatusCode::OK => {
                 println!("Server ready after {} attempts", attempt);
                 return true;
@@ -134,7 +130,7 @@ async fn test_plugin_api_endpoints_with_server() {
     // Step 2: List plugins (should be empty initially)
     println!("Step 2: Listing plugins...");
     let response = client
-        .get(&format!("{}/api/v1/plugins", TEST_BASE_URL))
+        .get(format!("{}/api/v1/plugins", TEST_BASE_URL))
         .bearer_auth(&token)
         .send()
         .await
@@ -147,7 +143,7 @@ async fn test_plugin_api_endpoints_with_server() {
     // Step 3: Try to load a plugin (will fail without actual WASM file)
     println!("Step 3: Attempting to load plugin...");
     let response = client
-        .post(&format!("{}/api/v1/plugins", TEST_BASE_URL))
+        .post(format!("{}/api/v1/plugins", TEST_BASE_URL))
         .bearer_auth(&token)
         .json(&json!({
             "id": "test-filter",
@@ -177,7 +173,7 @@ async fn test_plugin_api_endpoints_with_server() {
     // Step 4: Test plugin metrics endpoint
     println!("Step 4: Testing plugin metrics endpoint...");
     let response = client
-        .get(&format!(
+        .get(format!(
             "{}/api/v1/plugins/test-filter/metrics",
             TEST_BASE_URL
         ))
@@ -193,7 +189,7 @@ async fn test_plugin_api_endpoints_with_server() {
     // Step 5: Test plugin health endpoint
     println!("Step 5: Testing plugin health endpoint...");
     let response = client
-        .get(&format!(
+        .get(format!(
             "{}/api/v1/plugins/test-filter/health",
             TEST_BASE_URL
         ))
@@ -207,7 +203,7 @@ async fn test_plugin_api_endpoints_with_server() {
     // Step 6: Test plugin config update
     println!("Step 6: Testing plugin config update...");
     let response = client
-        .put(&format!(
+        .put(format!(
             "{}/api/v1/plugins/test-filter/config",
             TEST_BASE_URL
         ))
@@ -227,7 +223,7 @@ async fn test_plugin_api_endpoints_with_server() {
     // Step 7: Test plugin toggle
     println!("Step 7: Testing plugin toggle...");
     let response = client
-        .post(&format!(
+        .post(format!(
             "{}/api/v1/plugins/test-filter/toggle",
             TEST_BASE_URL
         ))
@@ -244,7 +240,7 @@ async fn test_plugin_api_endpoints_with_server() {
     // Step 8: Test plugin reload
     println!("Step 8: Testing plugin reload...");
     let response = client
-        .post(&format!(
+        .post(format!(
             "{}/api/v1/plugins/test-filter/reload",
             TEST_BASE_URL
         ))
@@ -258,7 +254,7 @@ async fn test_plugin_api_endpoints_with_server() {
     // Step 9: Test reload all plugins
     println!("Step 9: Testing reload all plugins...");
     let response = client
-        .post(&format!("{}/api/v1/plugins/reload-all", TEST_BASE_URL))
+        .post(format!("{}/api/v1/plugins/reload-all", TEST_BASE_URL))
         .bearer_auth(&token)
         .send()
         .await
@@ -270,7 +266,7 @@ async fn test_plugin_api_endpoints_with_server() {
     // Step 10: Test plugin unload
     println!("Step 10: Testing plugin unload...");
     let response = client
-        .delete(&format!("{}/api/v1/plugins/test-filter", TEST_BASE_URL))
+        .delete(format!("{}/api/v1/plugins/test-filter", TEST_BASE_URL))
         .bearer_auth(&token)
         .send()
         .await
@@ -298,7 +294,7 @@ async fn test_plugin_permissions() {
     // Try to load plugin (should fail - requires admin)
     println!("Attempting to load plugin as operator (should fail)...");
     let response = client
-        .post(&format!("{}/api/v1/plugins", TEST_BASE_URL))
+        .post(format!("{}/api/v1/plugins", TEST_BASE_URL))
         .bearer_auth(&operator_token)
         .json(&json!({
             "id": "test-plugin",
@@ -321,7 +317,7 @@ async fn test_plugin_permissions() {
     // Try to update config (should succeed - operator can do this)
     println!("Attempting to update config as operator (should succeed)...");
     let response = client
-        .put(&format!("{}/api/v1/plugins/test/config", TEST_BASE_URL))
+        .put(format!("{}/api/v1/plugins/test/config", TEST_BASE_URL))
         .bearer_auth(&operator_token)
         .json(&json!({
             "config": {"key": "value"}
@@ -352,7 +348,7 @@ async fn test_plugin_metrics_collection() {
 
     // Get metrics for a plugin
     let response = client
-        .get(&format!("{}/api/v1/plugins/test/metrics", TEST_BASE_URL))
+        .get(format!("{}/api/v1/plugins/test/metrics", TEST_BASE_URL))
         .bearer_auth(&token)
         .send()
         .await
@@ -397,7 +393,7 @@ async fn test_plugin_api_performance() {
     let start = std::time::Instant::now();
     for _ in 0..100 {
         let response = client
-            .get(&format!("{}/api/v1/plugins", TEST_BASE_URL))
+            .get(format!("{}/api/v1/plugins", TEST_BASE_URL))
             .bearer_auth(&token)
             .send()
             .await
@@ -437,7 +433,7 @@ async fn test_plugin_error_handling() {
     // Test 1: Invalid plugin ID format
     println!("Test 1: Invalid plugin load request...");
     let response = client
-        .post(&format!("{}/api/v1/plugins", TEST_BASE_URL))
+        .post(format!("{}/api/v1/plugins", TEST_BASE_URL))
         .bearer_auth(&token)
         .json(&json!({
             "id": "",  // Empty ID should fail validation
@@ -456,7 +452,7 @@ async fn test_plugin_error_handling() {
     // Test 2: Non-existent plugin operations
     println!("Test 2: Operations on non-existent plugin...");
     let response = client
-        .get(&format!(
+        .get(format!(
             "{}/api/v1/plugins/nonexistent-plugin-xyz",
             TEST_BASE_URL
         ))
@@ -471,7 +467,7 @@ async fn test_plugin_error_handling() {
     // Test 3: Invalid JSON
     println!("Test 3: Invalid JSON payload...");
     let response = client
-        .post(&format!("{}/api/v1/plugins", TEST_BASE_URL))
+        .post(format!("{}/api/v1/plugins", TEST_BASE_URL))
         .bearer_auth(&token)
         .header("Content-Type", "application/json")
         .body("{invalid json")

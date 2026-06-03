@@ -49,7 +49,6 @@ impl AdbDevice {
         let cert_paths = self.get_cert_paths(package);
 
         let mut certificates = Vec::new();
-        let mut found_location = None;
 
         // Try each path
         for path in &cert_paths {
@@ -57,7 +56,6 @@ impl AdbDevice {
 
             if self.adb_client.path_exists(&self.serial, path) {
                 info!("Found certificates in: {}", path);
-                found_location = Some(path.clone());
 
                 // Pull all certificate files
                 let files = self.list_cert_files(path)?;

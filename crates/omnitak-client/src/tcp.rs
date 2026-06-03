@@ -145,7 +145,8 @@ impl TcpClient {
         let config = self.config.base.reconnect.clone();
 
         // Inline retry logic to avoid closure capture issues
-        let result = if !config.enabled {
+
+        if !config.enabled {
             self.establish_connection().await
         } else {
             let mut attempt = 0u32;
@@ -163,15 +164,15 @@ impl TcpClient {
                     Err(e) => {
                         attempt += 1;
 
-                        if let Some(max) = config.max_attempts {
-                            if attempt >= max {
-                                error!(
-                                    attempt = attempt,
-                                    error = %e,
-                                    "Max reconnect attempts reached"
-                                );
-                                break Err(e);
-                            }
+                        if let Some(max) = config.max_attempts
+                            && attempt >= max
+                        {
+                            error!(
+                                attempt = attempt,
+                                error = %e,
+                                "Max reconnect attempts reached"
+                            );
+                            break Err(e);
                         }
 
                         let backoff = calculate_backoff(attempt - 1, &config);
@@ -186,9 +187,7 @@ impl TcpClient {
                     }
                 }
             }
-        };
-
-        result
+        }
     }
 
     /// Get a mutable reference to the stream for manual reading/writing
@@ -321,26 +320,25 @@ impl TcpClient {
 
         loop {
             // Search for the complete </event> token
-            if buffer.len() >= XML_END_TOKEN.len() {
-                if let Some(pos) = buffer
+            if buffer.len() >= XML_END_TOKEN.len()
+                && let Some(pos) = buffer
                     .windows(XML_END_TOKEN.len())
                     .position(|window| window == XML_END_TOKEN)
-                {
-                    // Split immediately after the </event> token
-                    let frame = buffer.split_to(pos + XML_END_TOKEN.len());
-                    let frame_bytes = frame.freeze();
+            {
+                // Split immediately after the </event> token
+                let frame = buffer.split_to(pos + XML_END_TOKEN.len());
+                let frame_bytes = frame.freeze();
 
-                    // Validate that it looks like XML (starts with '<')
-                    if frame_bytes.is_empty() || frame_bytes[0] != b'<' {
-                        warn!("Received data not starting with '<', skipping invalid frame");
-                        continue;
-                    }
-
-                    self.status
-                        .metrics()
-                        .record_bytes_received(frame_bytes.len() as u64);
-                    return Ok(Some(frame_bytes));
+                // Validate that it looks like XML (starts with '<')
+                if frame_bytes.is_empty() || frame_bytes[0] != b'<' {
+                    warn!("Received data not starting with '<', skipping invalid frame");
+                    continue;
                 }
+
+                self.status
+                    .metrics()
+                    .record_bytes_received(frame_bytes.len() as u64);
+                return Ok(Some(frame_bytes));
             }
 
             // Check buffer size limit
@@ -631,15 +629,15 @@ impl TakClient for TcpClient {
                     Err(e) => {
                         attempt += 1;
 
-                        if let Some(max) = config.max_attempts {
-                            if attempt >= max {
-                                error!(
-                                    attempt = attempt,
-                                    error = %e,
-                                    "Max reconnect attempts reached"
-                                );
-                                break Err(e);
-                            }
+                        if let Some(max) = config.max_attempts
+                            && attempt >= max
+                        {
+                            error!(
+                                attempt = attempt,
+                                error = %e,
+                                "Max reconnect attempts reached"
+                            );
+                            break Err(e);
                         }
 
                         let backoff = calculate_backoff(attempt - 1, &config);

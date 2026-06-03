@@ -332,7 +332,7 @@ async fn create_connection_from_bundle(
         .map_err(|e| anyhow::anyhow!("Failed to create TLS client: {}", e))?;
 
     // Spawn connection task
-    let conn_id = connection_id.clone();
+    let conn_id = connection_id;
     tokio::spawn(async move {
         info!(id = %conn_id, "Connecting TLS client from ADB");
         if let Err(e) = client.connect_only().await {

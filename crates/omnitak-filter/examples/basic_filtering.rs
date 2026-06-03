@@ -2,7 +2,7 @@
 //!
 //! Run with: cargo run --example basic_filtering
 
-use omnitak_filter::affiliation::{Affiliation, CotType};
+use omnitak_filter::affiliation::CotType;
 use omnitak_filter::router::{Route, RouteTableBuilder};
 use omnitak_filter::rules::{
     AffiliationFilter, CotMessage, FilterRule, GeoBoundingBoxFilter, TeamFilter,

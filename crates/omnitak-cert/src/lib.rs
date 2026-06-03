@@ -560,7 +560,7 @@ pub fn auto_load_certificate_bundle(
                 let ca_pem = extracted
                     .ca_cert_path
                     .as_ref()
-                    .map(|p| std::fs::read(p))
+                    .map(std::fs::read)
                     .transpose()?;
 
                 return CertificateBundle::from_pem(&cert_pem, &key_pem, ca_pem.as_deref());
@@ -686,7 +686,7 @@ pub struct CertificateChainInfo {
 impl CertificateInfo {
     /// Parse certificate info from DER-encoded data
     pub fn from_der(der_data: &[u8]) -> Result<Self> {
-        use chrono::{DateTime, Utc};
+        use chrono::Utc;
         use x509_parser::prelude::*;
 
         let (_, cert) = X509Certificate::from_der(der_data)
@@ -735,7 +735,7 @@ impl CertificateInfo {
         let expiring_soon = days_until_expiry <= 30 && days_until_expiry > 0;
 
         // Fingerprint (SHA-256)
-        use base64::prelude::*;
+
         let fingerprint = {
             use std::collections::hash_map::DefaultHasher;
             use std::hash::{Hash, Hasher};

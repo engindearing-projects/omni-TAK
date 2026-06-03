@@ -4,13 +4,12 @@
 //! priority queue for critical connections, and semaphore-based rate limiting.
 
 use anyhow::{Context, Result};
-use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Semaphore, SemaphorePermit};
 use tokio::task::JoinHandle;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use crate::pool::ConnectionId;
 
@@ -213,7 +212,9 @@ impl ConcurrencyLimiter {
 
     /// Stop the concurrency limiter
     pub async fn stop(&self) {
-        if let Some(task) = self.rate_limiter_task.write().take() {
+        // Take the handle out before awaiting so the lock isn't held across .await.
+        let task = self.rate_limiter_task.write().take();
+        if let Some(task) = task {
             task.abort();
             let _ = task.await;
         }

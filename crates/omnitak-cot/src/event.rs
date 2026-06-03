@@ -334,7 +334,7 @@ fn datetime_to_millis(dt: &DateTime<Utc>) -> u64 {
 fn millis_to_datetime(millis: u64) -> DateTime<Utc> {
     let secs = (millis / 1000) as i64;
     let nanos = ((millis % 1000) * 1_000_000) as u32;
-    DateTime::from_timestamp(secs, nanos).unwrap_or_else(|| DateTime::UNIX_EPOCH)
+    DateTime::from_timestamp(secs, nanos).unwrap_or(DateTime::UNIX_EPOCH)
 }
 
 impl Point {

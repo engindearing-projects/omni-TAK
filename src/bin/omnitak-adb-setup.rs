@@ -530,9 +530,7 @@ fn save_config(config: &OmniTakConfig, output: &Path) -> Result<()> {
             // If we have a .p12 file, note that it needs conversion
             if !config.p12_files.is_empty() {
                 let p12_file = &config.p12_files[0];
-                yaml.push_str(&format!(
-                    "      # IMPORTANT: Convert .p12 to PEM format first:\n"
-                ));
+                yaml.push_str("      # IMPORTANT: Convert .p12 to PEM format first:\n");
                 yaml.push_str(&format!(
                     "      # openssl pkcs12 -in {} -out client.pem -clcerts -nokeys\n",
                     p12_file.display()
@@ -573,11 +571,11 @@ fn save_config(config: &OmniTakConfig, output: &Path) -> Result<()> {
         }
 
         if i < config.servers.len() - 1 {
-            yaml.push_str("\n");
+            yaml.push('\n');
         }
     }
 
-    yaml.push_str("\n");
+    yaml.push('\n');
     yaml.push_str("filters:\n");
     yaml.push_str("  mode: whitelist\n");
     yaml.push_str("  rules:\n");

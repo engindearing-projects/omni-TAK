@@ -160,7 +160,7 @@ impl UidBloomFilter {
         // Calculate optimal bit array size
         let bits_per_item = -1.44 * false_positive_rate.log2();
         let total_bits = (expected_items as f64 * bits_per_item).ceil() as usize;
-        let num_u64s = (total_bits + 63) / 64;
+        let num_u64s = total_bits.div_ceil(64);
 
         // Calculate optimal number of hash functions
         let hash_count = (bits_per_item * 0.693).ceil() as usize;

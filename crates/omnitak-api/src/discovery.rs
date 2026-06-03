@@ -10,10 +10,9 @@ use axum::{
     Json,
 };
 use chrono::{DateTime, Utc};
-use omnitak_discovery::{DiscoveredService, DiscoveryService, ServiceStatus, ServiceType};
+use omnitak_discovery::{DiscoveredService, ServiceStatus, ServiceType};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::info;
 use validator::Validate;
 
 // ============================================================================

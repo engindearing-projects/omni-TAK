@@ -2,10 +2,10 @@
 //!
 //! Implements the MissionPackageManifest v2 format used by ATAK/WinTAK
 
-use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
+use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, Event};
 use quick_xml::{Reader, Writer};
 use serde::{Deserialize, Serialize};
-use std::io::{BufRead, Write};
+use std::io::BufRead;
 
 use crate::error::{DataPackageError, Result};
 use crate::MANIFEST_VERSION;

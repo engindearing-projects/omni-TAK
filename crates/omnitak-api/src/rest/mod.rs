@@ -17,7 +17,7 @@ use chrono::Utc;
 use omnitak_client::{
     tcp::{FramingMode, TcpClient, TcpClientConfig},
     tls::{TlsClient, TlsClientConfig},
-    Bytes, BytesMut, ClientConfig, CotMessage, ReconnectConfig, TakClient,
+    BytesMut, ClientConfig, ReconnectConfig,
 };
 use omnitak_pool::{ConnectionPool, FilterRule as PoolFilterRule, MessageDistributor, PoolMessage};
 use quick_xml;
@@ -135,7 +135,7 @@ async fn get_system_status(
 ) -> Result<Json<SystemStatus>, ApiError> {
     // Get real metrics from pool
     let pool_stats = state.pool.stats();
-    let pool_metrics = state.pool.metrics();
+    let _pool_metrics = state.pool.metrics();
 
     // Calculate uptime
     let uptime_seconds = state.start_time.elapsed().as_secs();
@@ -1252,7 +1252,7 @@ async fn delete_filter(
 async fn get_metrics(State(state): State<ApiState>, _user: AuthUser) -> Result<String, ApiError> {
     // Get real metrics from pool
     let pool_stats = state.pool.stats();
-    let pool_metrics = state.pool.metrics();
+    let _pool_metrics = state.pool.metrics();
 
     // Format as Prometheus metrics
     Ok(format!(

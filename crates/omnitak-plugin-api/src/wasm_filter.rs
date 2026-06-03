@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_plugin_metadata() {
-        let runtime = Arc::new(PluginRuntime::new().unwrap());
+        let _runtime = Arc::new(PluginRuntime::new().unwrap());
         let metadata = FilterMetadata {
             id: "test-filter".to_string(),
             name: "Test Filter".to_string(),

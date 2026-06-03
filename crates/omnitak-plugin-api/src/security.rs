@@ -26,7 +26,7 @@ impl Default for ResourceLimits {
 }
 
 /// Sandbox security policy
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SandboxPolicy {
     /// Allow network access
     pub allow_network: bool,
@@ -38,18 +38,6 @@ pub struct SandboxPolicy {
     pub allow_env_vars: bool,
     /// Allowed filesystem paths (if filesystem access enabled)
     pub allowed_paths: Vec<String>,
-}
-
-impl Default for SandboxPolicy {
-    fn default() -> Self {
-        Self {
-            allow_network: false,
-            allow_filesystem_read: false,
-            allow_filesystem_write: false,
-            allow_env_vars: false,
-            allowed_paths: Vec::new(),
-        }
-    }
 }
 
 impl SandboxPolicy {
