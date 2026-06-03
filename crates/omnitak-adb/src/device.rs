@@ -65,7 +65,10 @@ impl AdbDevice {
                     let remote_path = format!("{}/{}", path, file);
                     let local_path = output_dir.join(&file);
 
-                    if let Ok(()) = self.adb_client.pull(&self.serial, &remote_path, &local_path) {
+                    if let Ok(()) = self
+                        .adb_client
+                        .pull(&self.serial, &remote_path, &local_path)
+                    {
                         info!("  ✓ Pulled: {}", file);
 
                         certificates.push(CertificateFile {
@@ -179,7 +182,11 @@ impl AdbDevice {
                                 .unwrap_or("unknown.p12");
                             let local_path = output_dir.join(filename);
 
-                            if self.adb_client.pull(&self.serial, file, &local_path).is_ok() {
+                            if self
+                                .adb_client
+                                .pull(&self.serial, file, &local_path)
+                                .is_ok()
+                            {
                                 info!("  ✓ Found and pulled: {}", filename);
                                 certificates.push(CertificateFile {
                                     original_name: filename.to_string(),

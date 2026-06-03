@@ -484,7 +484,10 @@ impl OmniTakApp {
 
         let server_path = possible_paths.iter().find(|p| p.exists())?;
 
-        tracing::info!("Starting embedded API server from: {}", server_path.display());
+        tracing::info!(
+            "Starting embedded API server from: {}",
+            server_path.display()
+        );
 
         // Start the server process
         let child = Command::new(server_path)
@@ -513,14 +516,22 @@ impl OmniTakApp {
             // Try to load from config file using gui-servers.yaml format
             match import_config(path) {
                 Ok(config) => {
-                    tracing::info!("Loaded {} servers from {}", config.servers.len(), path.display());
+                    tracing::info!(
+                        "Loaded {} servers from {}",
+                        config.servers.len(),
+                        path.display()
+                    );
                     AppState {
                         servers: config.servers,
                         ..Default::default()
                     }
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to load config from {}: {}, using default", path.display(), e);
+                    tracing::warn!(
+                        "Failed to load config from {}: {}, using default",
+                        path.display(),
+                        e
+                    );
                     Default::default()
                 }
             }
@@ -542,7 +553,9 @@ impl OmniTakApp {
         let embedded_server = Self::start_embedded_server(api_port);
 
         if embedded_server.is_none() {
-            tracing::warn!("Failed to start embedded API server - will try to connect to external server");
+            tracing::warn!(
+                "Failed to start embedded API server - will try to connect to external server"
+            );
         }
 
         // Initialize API client (unified mode)
@@ -887,21 +900,31 @@ impl OmniTakApp {
                 ui.horizontal(|ui| {
                     ui.label("API URL:");
                     ui.add_space(10.0);
-                    ui.add(egui::TextEdit::singleline(&mut self.api_url).min_size(egui::vec2(300.0, 0.0)));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.api_url)
+                            .min_size(egui::vec2(300.0, 0.0)),
+                    );
                 });
                 ui.add_space(10.0);
 
                 ui.horizontal(|ui| {
                     ui.label("Username:");
                     ui.add_space(10.0);
-                    ui.add(egui::TextEdit::singleline(&mut self.login_username).min_size(egui::vec2(300.0, 0.0)));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.login_username)
+                            .min_size(egui::vec2(300.0, 0.0)),
+                    );
                 });
                 ui.add_space(10.0);
 
                 ui.horizontal(|ui| {
                     ui.label("Password:");
                     ui.add_space(10.0);
-                    ui.add(egui::TextEdit::singleline(&mut self.login_password).password(true).min_size(egui::vec2(300.0, 0.0)));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.login_password)
+                            .password(true)
+                            .min_size(egui::vec2(300.0, 0.0)),
+                    );
                 });
                 ui.add_space(20.0);
 
@@ -926,7 +949,10 @@ impl OmniTakApp {
         let password = self.login_password.clone();
 
         // Use shared tokio runtime to make the async call
-        match self.runtime.block_on(api_client.login(&username, &password)) {
+        match self
+            .runtime
+            .block_on(api_client.login(&username, &password))
+        {
             Ok(()) => {
                 self.is_authenticated = true;
                 self.login_error = None;

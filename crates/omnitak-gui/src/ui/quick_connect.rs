@@ -8,7 +8,9 @@
 
 use crate::{OmniTakApp, StatusLevel};
 use eframe::egui;
-use omnitak_cert::{ExtractedCertificates, extract_zip_certificates, scan_directory_for_certificates};
+use omnitak_cert::{
+    extract_zip_certificates, scan_directory_for_certificates, ExtractedCertificates,
+};
 use omnitak_core::types::{Protocol, ReconnectConfig, ServerConfig, TlsConfig};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -206,7 +208,11 @@ fn render_progress_indicator(ui: &mut egui::Ui, current_step: WizardStep) {
 }
 
 fn render_select_source_step(ui: &mut egui::Ui, state: &mut QuickConnectState) {
-    ui.label(egui::RichText::new("How do you want to connect?").size(16.0).strong());
+    ui.label(
+        egui::RichText::new("How do you want to connect?")
+            .size(16.0)
+            .strong(),
+    );
     ui.add_space(10.0);
 
     // Option 1: Certificate file
@@ -215,7 +221,11 @@ fn render_select_source_step(ui: &mut egui::Ui, state: &mut QuickConnectState) {
         .corner_radius(5.0)
         .inner_margin(15.0)
         .show(ui, |ui| {
-            ui.label(egui::RichText::new("📁 Import Certificates").size(14.0).strong());
+            ui.label(
+                egui::RichText::new("📁 Import Certificates")
+                    .size(14.0)
+                    .strong(),
+            );
             ui.add_space(5.0);
             ui.label("Upload a ZIP file, P12/PFX file, or select a certificate folder");
             ui.add_space(10.0);
@@ -228,7 +238,10 @@ fn render_select_source_step(ui: &mut egui::Ui, state: &mut QuickConnectState) {
                         "cert_file_picker",
                         || {
                             rfd::FileDialog::new()
-                                .add_filter("Certificate Files", &["zip", "p12", "pfx", "pem", "crt"])
+                                .add_filter(
+                                    "Certificate Files",
+                                    &["zip", "p12", "pfx", "pem", "crt"],
+                                )
                                 .add_filter("All Files", &["*"])
                                 .pick_file()
                         },
@@ -254,7 +267,11 @@ fn render_select_source_step(ui: &mut egui::Ui, state: &mut QuickConnectState) {
         .corner_radius(5.0)
         .inner_margin(15.0)
         .show(ui, |ui| {
-            ui.label(egui::RichText::new("🔍 Discover TAK Servers").size(14.0).strong());
+            ui.label(
+                egui::RichText::new("🔍 Discover TAK Servers")
+                    .size(14.0)
+                    .strong(),
+            );
             ui.add_space(5.0);
             ui.label("Find TAK servers on your local network via mDNS");
             ui.add_space(10.0);
@@ -267,14 +284,12 @@ fn render_select_source_step(ui: &mut egui::Ui, state: &mut QuickConnectState) {
                     state.is_discovering = true;
                     // TODO: Integrate with discovery service
                     // For now, show placeholder
-                    state.discovered_servers = vec![
-                        DiscoveredServer {
-                            name: "Local TAK Server".to_string(),
-                            host: "127.0.0.1".to_string(),
-                            port: 8089,
-                            service_type: "TLS".to_string(),
-                        },
-                    ];
+                    state.discovered_servers = vec![DiscoveredServer {
+                        name: "Local TAK Server".to_string(),
+                        host: "127.0.0.1".to_string(),
+                        port: 8089,
+                        service_type: "TLS".to_string(),
+                    }];
                     state.is_discovering = false;
                 }
             }
@@ -285,7 +300,10 @@ fn render_select_source_step(ui: &mut egui::Ui, state: &mut QuickConnectState) {
 
                 for server in &state.discovered_servers {
                     ui.horizontal(|ui| {
-                        ui.label(format!("• {} ({}:{})", server.name, server.host, server.port));
+                        ui.label(format!(
+                            "• {} ({}:{})",
+                            server.name, server.host, server.port
+                        ));
                         if ui.small_button("Select").clicked() {
                             state.server_config.name = server.name.clone();
                             state.server_config.host = server.host.clone();
@@ -305,7 +323,11 @@ fn render_select_source_step(ui: &mut egui::Ui, state: &mut QuickConnectState) {
         .corner_radius(5.0)
         .inner_margin(15.0)
         .show(ui, |ui| {
-            ui.label(egui::RichText::new("⌨️ Manual Configuration").size(14.0).strong());
+            ui.label(
+                egui::RichText::new("⌨️ Manual Configuration")
+                    .size(14.0)
+                    .strong(),
+            );
             ui.add_space(5.0);
             ui.label("Enter server details manually (advanced)");
             ui.add_space(10.0);
@@ -322,7 +344,11 @@ fn render_extract_certs_step(
 ) -> Option<(String, StatusLevel)> {
     let mut status_message = None;
 
-    ui.label(egui::RichText::new("Extracting Certificates").size(16.0).strong());
+    ui.label(
+        egui::RichText::new("Extracting Certificates")
+            .size(16.0)
+            .strong(),
+    );
     ui.add_space(10.0);
 
     ui.label(format!("File: {}", state.cert_file_path));
@@ -331,7 +357,8 @@ fn render_extract_certs_step(
     // Check if we need to extract
     if state.extracted_certs.is_none() {
         let path = PathBuf::from(&state.cert_file_path);
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_lowercase();
@@ -341,18 +368,19 @@ fn render_extract_certs_step(
             state.error_message = Some(format!("Failed to create output directory: {}", e));
         } else {
             match ext.as_str() {
-                "zip" => {
-                    match extract_zip_certificates(&path, &state.cert_output_dir) {
-                        Ok(extracted) => {
-                            state.extracted_certs = Some(extracted);
-                            state.error_message = None;
-                            status_message = Some(("Certificates extracted successfully".to_string(), StatusLevel::Success));
-                        }
-                        Err(e) => {
-                            state.error_message = Some(format!("Failed to extract ZIP: {}", e));
-                        }
+                "zip" => match extract_zip_certificates(&path, &state.cert_output_dir) {
+                    Ok(extracted) => {
+                        state.extracted_certs = Some(extracted);
+                        state.error_message = None;
+                        status_message = Some((
+                            "Certificates extracted successfully".to_string(),
+                            StatusLevel::Success,
+                        ));
                     }
-                }
+                    Err(e) => {
+                        state.error_message = Some(format!("Failed to extract ZIP: {}", e));
+                    }
+                },
                 "p12" | "pfx" => {
                     // P12 file - we'll handle it directly in the next step
                     state.extracted_certs = Some(ExtractedCertificates {
@@ -372,7 +400,8 @@ fn render_extract_certs_step(
                                 state.extracted_certs = Some(extracted);
                             }
                             Err(e) => {
-                                state.error_message = Some(format!("Failed to scan directory: {}", e));
+                                state.error_message =
+                                    Some(format!("Failed to scan directory: {}", e));
                             }
                         }
                     }
@@ -387,14 +416,30 @@ fn render_extract_certs_step(
     // Show extraction results
     if let Some(extracted) = &state.extracted_certs {
         // Clone extracted data for display to avoid borrow conflicts
-        let p12_name = extracted.p12_path.as_ref()
-            .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string());
-        let ca_name = extracted.ca_cert_path.as_ref()
-            .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string());
-        let cert_name = extracted.client_cert_path.as_ref()
-            .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string());
-        let key_name = extracted.client_key_path.as_ref()
-            .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string());
+        let p12_name = extracted.p12_path.as_ref().map(|p| {
+            p.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        });
+        let ca_name = extracted.ca_cert_path.as_ref().map(|p| {
+            p.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        });
+        let cert_name = extracted.client_cert_path.as_ref().map(|p| {
+            p.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        });
+        let key_name = extracted.client_key_path.as_ref().map(|p| {
+            p.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        });
         let server_info = extracted.server_info.clone();
         let has_p12 = extracted.p12_path.is_some();
 
@@ -413,17 +458,11 @@ fn render_extract_certs_step(
                 ui.add_space(5.0);
 
                 if let Some(name) = &p12_name {
-                    ui.colored_label(
-                        egui::Color32::GREEN,
-                        format!("✓ P12/PFX Bundle: {}", name),
-                    );
+                    ui.colored_label(egui::Color32::GREEN, format!("✓ P12/PFX Bundle: {}", name));
                 }
 
                 if let Some(name) = &ca_name {
-                    ui.colored_label(
-                        egui::Color32::GREEN,
-                        format!("✓ CA Certificate: {}", name),
-                    );
+                    ui.colored_label(egui::Color32::GREEN, format!("✓ CA Certificate: {}", name));
                 }
 
                 if let Some(name) = &cert_name {
@@ -434,10 +473,7 @@ fn render_extract_certs_step(
                 }
 
                 if let Some(name) = &key_name {
-                    ui.colored_label(
-                        egui::Color32::GREEN,
-                        format!("✓ Client Key: {}", name),
-                    );
+                    ui.colored_label(egui::Color32::GREEN, format!("✓ Client Key: {}", name));
                 }
 
                 if let Some(info) = &server_info {
@@ -501,8 +537,7 @@ fn render_extract_certs_step(
             // Build TLS config from extracted certs
             if let Some(p12) = &p12_path {
                 state.server_config.tls = Some(TlsConfig {
-                    ca_cert_path: ca_cert_path.clone()
-                        .unwrap_or_else(|| PathBuf::new()),
+                    ca_cert_path: ca_cert_path.clone().unwrap_or_else(|| PathBuf::new()),
                     client_cert_path: Some(p12.clone()),
                     client_key_path: None, // Embedded in P12
                     verify_cert: true,
@@ -510,8 +545,7 @@ fn render_extract_certs_step(
                 });
             } else if let (Some(cert), Some(key)) = (&client_cert_path, &client_key_path) {
                 state.server_config.tls = Some(TlsConfig {
-                    ca_cert_path: ca_cert_path.clone()
-                        .unwrap_or_else(|| PathBuf::new()),
+                    ca_cert_path: ca_cert_path.clone().unwrap_or_else(|| PathBuf::new()),
                     client_cert_path: Some(cert.clone()),
                     client_key_path: Some(key.clone()),
                     verify_cert: true,
@@ -572,14 +606,28 @@ fn render_configure_server_step(ui: &mut egui::Ui, state: &mut QuickConnectState
     if let Some(tls) = &state.server_config.tls {
         // Clone display info to avoid borrow conflicts
         let ca_display = if tls.ca_cert_path.as_os_str().len() > 0 {
-            Some(tls.ca_cert_path.file_name().unwrap_or_default().to_string_lossy().to_string())
+            Some(
+                tls.ca_cert_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
+            )
         } else {
             None
         };
-        let cert_display = tls.client_cert_path.as_ref()
-            .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string());
-        let key_display = tls.client_key_path.as_ref()
-            .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string());
+        let cert_display = tls.client_cert_path.as_ref().map(|p| {
+            p.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        });
+        let key_display = tls.client_key_path.as_ref().map(|p| {
+            p.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        });
         let current_verify = tls.verify_cert;
 
         let mut new_verify = current_verify;
@@ -659,7 +707,14 @@ fn render_review_step(
             ui.label(format!("Host: {}", state.server_config.host));
             ui.label(format!("Port: {}", state.server_config.port));
             ui.label(format!("Protocol: {:?}", state.server_config.protocol));
-            ui.label(format!("Auto-connect: {}", if state.server_config.enabled { "Yes" } else { "No" }));
+            ui.label(format!(
+                "Auto-connect: {}",
+                if state.server_config.enabled {
+                    "Yes"
+                } else {
+                    "No"
+                }
+            ));
 
             if state.server_config.tls.is_some() {
                 ui.add_space(5.0);
@@ -683,7 +738,10 @@ fn render_review_step(
             app.connect_server(state.server_config.clone());
 
             status_message = Some((
-                format!("Server '{}' added and connecting...", state.server_config.name),
+                format!(
+                    "Server '{}' added and connecting...",
+                    state.server_config.name
+                ),
                 StatusLevel::Success,
             ));
 

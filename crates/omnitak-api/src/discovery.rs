@@ -1,7 +1,7 @@
 //! Discovery REST API endpoints for managing mDNS service discovery
 
 use crate::auth::{AuthUser, RequireOperator};
-use crate::rest::{ApiState, ApiError};
+use crate::rest::{ApiError, ApiState};
 use crate::types::ErrorResponse;
 use axum::{
     extract::{Path, Query, State},
@@ -126,8 +126,7 @@ pub struct DiscoveryStatusResponse {
 }
 
 /// Request to manually trigger discovery refresh
-#[derive(Debug, Serialize, Deserialize, Validate)]
-#[derive(utoipa::ToSchema)]
+#[derive(Debug, Serialize, Deserialize, Validate, utoipa::ToSchema)]
 pub struct RefreshRequest {
     /// Optional service type to refresh (or all if not specified)
     pub service_type: Option<String>,
@@ -171,7 +170,9 @@ pub async fn get_discovery_status(
     State(state): State<ApiState>,
     _user: AuthUser,
 ) -> Result<Json<DiscoveryStatusResponse>, ApiError> {
-    let discovery = state.discovery.as_ref()
+    let discovery = state
+        .discovery
+        .as_ref()
         .ok_or_else(|| ApiError::NotFound("Discovery service not enabled".to_string()))?;
 
     let services = discovery.get_discovered_services().await;
@@ -220,7 +221,9 @@ pub async fn list_discovered_services(
     Query(query): Query<DiscoveryQuery>,
     _user: AuthUser,
 ) -> Result<Json<DiscoveredServicesList>, ApiError> {
-    let discovery = state.discovery.as_ref()
+    let discovery = state
+        .discovery
+        .as_ref()
         .ok_or_else(|| ApiError::NotFound("Discovery service not enabled".to_string()))?;
 
     let mut services = discovery.get_discovered_services().await;
@@ -273,7 +276,9 @@ pub async fn get_discovered_service(
     Path(id): Path<String>,
     _user: AuthUser,
 ) -> Result<Json<DiscoveredServiceResponse>, ApiError> {
-    let discovery = state.discovery.as_ref()
+    let discovery = state
+        .discovery
+        .as_ref()
         .ok_or_else(|| ApiError::NotFound("Discovery service not enabled".to_string()))?;
 
     let service = discovery
@@ -304,7 +309,9 @@ pub async fn refresh_discovery(
     _operator: RequireOperator,
     Json(_request): Json<RefreshRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let discovery = state.discovery.as_ref()
+    let discovery = state
+        .discovery
+        .as_ref()
         .ok_or_else(|| ApiError::NotFound("Discovery service not enabled".to_string()))?;
 
     info!("Manually triggering discovery refresh");
@@ -340,7 +347,9 @@ pub async fn list_tak_servers(
     State(state): State<ApiState>,
     _user: AuthUser,
 ) -> Result<Json<DiscoveredServicesList>, ApiError> {
-    let discovery = state.discovery.as_ref()
+    let discovery = state
+        .discovery
+        .as_ref()
         .ok_or_else(|| ApiError::NotFound("Discovery service not enabled".to_string()))?;
 
     let services = discovery
@@ -376,7 +385,9 @@ pub async fn list_atak_devices(
     State(state): State<ApiState>,
     _user: AuthUser,
 ) -> Result<Json<DiscoveredServicesList>, ApiError> {
-    let discovery = state.discovery.as_ref()
+    let discovery = state
+        .discovery
+        .as_ref()
         .ok_or_else(|| ApiError::NotFound("Discovery service not enabled".to_string()))?;
 
     let services = discovery

@@ -43,17 +43,17 @@ pub mod websocket;
 
 use auth::{AuthConfig, AuthService};
 use middleware::{
-    RateLimitState, ReadinessState, cors_layer, logging_middleware, rate_limit_middleware,
-    request_id_middleware, security_headers_middleware, timeout_middleware,
+    cors_layer, logging_middleware, rate_limit_middleware, request_id_middleware,
+    security_headers_middleware, timeout_middleware, RateLimitState, ReadinessState,
 };
 use omnitak_cert::generator::CaConfig;
 use omnitak_plugin_api::PluginManager;
 use omnitak_pool::{
-    AggregatorConfig, ConnectionPool, DistributionStrategy, DistributorConfig,
-    MessageAggregator, MessageDistributor, PoolConfig,
+    AggregatorConfig, ConnectionPool, DistributionStrategy, DistributorConfig, MessageAggregator,
+    MessageDistributor, PoolConfig,
 };
-use rest::ApiState;
 use rest::enrollment::EnrollmentState;
+use rest::ApiState;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -358,16 +358,26 @@ impl Server {
             match PluginManager::new(omnitak_plugin_api::PluginManagerConfig::default()) {
                 Ok(manager) => Arc::new(RwLock::new(manager)),
                 Err(e) => {
-                    warn!("Failed to initialize plugin manager: {}, plugins will be disabled", e);
+                    warn!(
+                        "Failed to initialize plugin manager: {}, plugins will be disabled",
+                        e
+                    );
                     // Create a minimal manager as a fallback
-                    Arc::new(RwLock::new(PluginManager::new(omnitak_plugin_api::PluginManagerConfig {
-                        plugin_dir: "./plugins".to_string(),
-                        hot_reload: false,
-                        ..Default::default()
-                    }).unwrap_or_else(|_| panic!("Critical: Could not initialize plugin manager"))))
+                    Arc::new(RwLock::new(
+                        PluginManager::new(omnitak_plugin_api::PluginManagerConfig {
+                            plugin_dir: "./plugins".to_string(),
+                            hot_reload: false,
+                            ..Default::default()
+                        })
+                        .unwrap_or_else(|_| {
+                            panic!("Critical: Could not initialize plugin manager")
+                        }),
+                    ))
                 }
             }
-        }).await.expect("Plugin manager spawn_blocking failed");
+        })
+        .await
+        .expect("Plugin manager spawn_blocking failed");
         let plugin_state = rest::plugins::PluginApiState {
             plugin_manager,
             audit_logger: audit_logger.clone(),
@@ -404,7 +414,9 @@ impl Server {
             } else {
                 // Set server config if provided
                 if let Some(server_config) = &self.config.enrollment_server_config {
-                    enrollment_state.set_server_config(server_config.clone()).await;
+                    enrollment_state
+                        .set_server_config(server_config.clone())
+                        .await;
                 } else {
                     // Auto-detect from bind address
                     let host = if self.config.bind_addr.ip().is_unspecified() {

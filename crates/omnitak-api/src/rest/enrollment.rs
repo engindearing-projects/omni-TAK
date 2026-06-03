@@ -6,22 +6,22 @@
 //! 3. Data packages contain certificates + server configuration
 
 use axum::{
-    Json, Router,
     body::Body,
     extract::{Path, Query, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post, delete},
+    routing::{delete, get, post},
+    Json, Router,
 };
 use dashmap::DashMap;
 use omnitak_cert::generator::{
     CaConfig, ClientCertConfig, EnrollmentToken, GeneratedCa, GeneratedClientCert,
 };
-use omnitak_datapackage::{DataPackageBuilder, ContentType};
+use omnitak_datapackage::{ContentType, DataPackageBuilder};
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 use validator::Validate;
 
 use crate::auth::RequireAdmin;
@@ -147,34 +147,34 @@ async fn download_datapackage(
     info!("Data package download request with token");
 
     // Find and validate token
-    let mut token_entry = state.tokens.get_mut(&query.token)
-        .ok_or_else(|| {
-            warn!("Invalid enrollment token attempted");
-            ApiError::Unauthorized("Invalid or expired enrollment token".to_string())
-        })?;
+    let mut token_entry = state.tokens.get_mut(&query.token).ok_or_else(|| {
+        warn!("Invalid enrollment token attempted");
+        ApiError::Unauthorized("Invalid or expired enrollment token".to_string())
+    })?;
 
     if !token_entry.is_valid() {
         warn!("Expired or exhausted token: {}", token_entry.id);
-        return Err(ApiError::Unauthorized("Token has expired or reached maximum uses".to_string()));
+        return Err(ApiError::Unauthorized(
+            "Token has expired or reached maximum uses".to_string(),
+        ));
     }
 
     // Get CA
     let ca_lock = state.ca.read().await;
-    let ca = ca_lock.as_ref()
+    let ca = ca_lock
+        .as_ref()
         .ok_or_else(|| ApiError::InternalError("Enrollment CA not initialized".to_string()))?;
 
     // Get server config
     let server_config = state.server_config.read().await.clone();
 
     // Generate client certificate
-    let client_config = ClientCertConfig::new(&token_entry.username)
-        .with_validity(365); // TODO: make configurable per token
+    let client_config = ClientCertConfig::new(&token_entry.username).with_validity(365); // TODO: make configurable per token
 
-    let client_cert = ca.issue_client_cert(&client_config)
-        .map_err(|e| {
-            error!("Failed to issue client certificate: {}", e);
-            ApiError::InternalError("Failed to generate certificate".to_string())
-        })?;
+    let client_cert = ca.issue_client_cert(&client_config).map_err(|e| {
+        error!("Failed to issue client certificate: {}", e);
+        ApiError::InternalError("Failed to generate certificate".to_string())
+    })?;
 
     // Build data package
     let data_package = build_data_package(&client_cert, &server_config, &token_entry.username)
@@ -189,7 +189,9 @@ async fn download_datapackage(
     drop(token_entry);
 
     // Increment enrolled count
-    state.enrolled_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    state
+        .enrolled_count
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
     info!("Data package generated for: {}", username);
 
@@ -224,11 +226,11 @@ async fn get_enrollment_status(
     };
 
     // Count active tokens
-    let active_tokens = state.tokens.iter()
-        .filter(|t| t.is_valid())
-        .count();
+    let active_tokens = state.tokens.iter().filter(|t| t.is_valid()).count();
 
-    let enrolled_clients = state.enrolled_count.load(std::sync::atomic::Ordering::Relaxed);
+    let enrolled_clients = state
+        .enrolled_count
+        .load(std::sync::atomic::Ordering::Relaxed);
 
     Ok(Json(EnrollmentStatus {
         enabled: ca_lock.is_some(),
@@ -245,7 +247,8 @@ fn parse_ca_info(cert_pem: &str) -> Result<CaInfo, anyhow::Error> {
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| anyhow::anyhow!("Failed to parse certificate: {}", e))?;
 
-    let cert_der = certs.first()
+    let cert_der = certs
+        .first()
         .ok_or_else(|| anyhow::anyhow!("No certificate found"))?;
 
     let cert_info = omnitak_cert::CertificateInfo::from_der(cert_der.as_ref())?;
@@ -263,7 +266,8 @@ async fn list_tokens(
     State(state): State<EnrollmentState>,
     RequireAdmin(_user): RequireAdmin,
 ) -> Result<Json<EnrollmentTokenList>, ApiError> {
-    let tokens: Vec<EnrollmentTokenInfo> = state.tokens
+    let tokens: Vec<EnrollmentTokenInfo> = state
+        .tokens
         .iter()
         .map(|entry| {
             let token = entry.value();
@@ -297,16 +301,14 @@ async fn create_token(
     // Check if CA is initialized
     let ca_lock = state.ca.read().await;
     if ca_lock.is_none() {
-        return Err(ApiError::BadRequest("Enrollment CA not initialized".to_string()));
+        return Err(ApiError::BadRequest(
+            "Enrollment CA not initialized".to_string(),
+        ));
     }
     drop(ca_lock);
 
     // Create token
-    let token = EnrollmentToken::new(
-        &request.username,
-        request.validity_hours,
-        request.max_uses,
-    );
+    let token = EnrollmentToken::new(&request.username, request.validity_hours, request.max_uses);
 
     let token_string = token.token.clone();
     let token_id = token.id.clone();
@@ -319,13 +321,14 @@ async fn create_token(
     let server_config = state.server_config.read().await;
     let enrollment_url = format!(
         "https://{}:{}/api/v1/enrollment/datapackage?token={}",
-        server_config.host,
-        server_config.api_port,
-        token_string
+        server_config.host, server_config.api_port, token_string
     );
     drop(server_config);
 
-    info!("Created enrollment token for: {} (id: {})", request.username, token_id);
+    info!(
+        "Created enrollment token for: {} (id: {})",
+        request.username, token_id
+    );
 
     // Audit log
     state.audit_logger.log(
@@ -363,7 +366,8 @@ async fn delete_token(
     RequireAdmin(user): RequireAdmin,
 ) -> Result<Json<DeleteConnectionResponse>, ApiError> {
     // Find token by ID
-    let token_key = state.tokens
+    let token_key = state
+        .tokens
         .iter()
         .find(|entry| entry.value().id == id)
         .map(|entry| entry.key().clone());
@@ -475,9 +479,9 @@ fn create_ca_truststore(ca_cert_pem: &str, password: &str) -> Result<Vec<u8>, an
     // Parse CA certificate
     let ca_cert_der = {
         let mut reader = std::io::BufReader::new(ca_cert_pem.as_bytes());
-        let certs: Vec<_> = rustls_pemfile::certs(&mut reader)
-            .collect::<Result<Vec<_>, _>>()?;
-        certs.first()
+        let certs: Vec<_> = rustls_pemfile::certs(&mut reader).collect::<Result<Vec<_>, _>>()?;
+        certs
+            .first()
             .ok_or_else(|| anyhow::anyhow!("No CA certificate found"))?
             .to_vec()
     };
@@ -495,12 +499,11 @@ fn generate_atak_preferences(server_config: &ServerConnectionConfig, username: &
     let protocol = if server_config.use_tls { "ssl" } else { "tcp" };
     let connect_string = format!(
         "{}:{}:{}",
-        server_config.host,
-        server_config.streaming_port,
-        protocol
+        server_config.host, server_config.streaming_port, protocol
     );
 
-    format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
 <preferences>
     <preference version="1" name="cot_streams">
         <entry key="count" class="class java.lang.Integer">1</entry>
@@ -519,7 +522,10 @@ fn generate_atak_preferences(server_config: &ServerConnectionConfig, username: &
     </preference>
 </preferences>
 "#,
-        description = server_config.description.as_deref().unwrap_or("OmniTAK Server"),
+        description = server_config
+            .description
+            .as_deref()
+            .unwrap_or("OmniTAK Server"),
         connect_string = connect_string,
         username = username,
     )

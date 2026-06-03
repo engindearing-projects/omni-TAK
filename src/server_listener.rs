@@ -40,9 +40,9 @@
 //!    Write Task   Write Task   Write Task  ← Send to clients
 //! ```
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use bytes::BytesMut;
-use omnitak_pool::{ConnectionPool, MessageAggregator, InboundMessage};
+use omnitak_pool::{ConnectionPool, InboundMessage, MessageAggregator};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -404,7 +404,9 @@ impl TcpListener {
                 match Self::read_xml_frame(&mut read_half, &mut buffer).await {
                     Ok(Some(frame)) => {
                         let frame_len = frame.len();
-                        state_read.bytes_received.fetch_add(frame_len as u64, Ordering::Relaxed);
+                        state_read
+                            .bytes_received
+                            .fetch_add(frame_len as u64, Ordering::Relaxed);
                         state_read.messages_received.fetch_add(1, Ordering::Relaxed);
 
                         debug!(
@@ -709,25 +711,26 @@ impl TlsListener {
                     .context("Failed to parse CA certificate")?;
 
                 for cert in ca_certs {
-                    root_cert_store.add(cert).context("Failed to add CA certificate")?;
+                    root_cert_store
+                        .add(cert)
+                        .context("Failed to add CA certificate")?;
                 }
 
-                let client_verifier = rustls::server::WebPkiClientVerifier::builder(
-                    Arc::new(root_cert_store)
-                )
-                .build()
-                .context("Failed to build client verifier")?;
+                let client_verifier =
+                    rustls::server::WebPkiClientVerifier::builder(Arc::new(root_cert_store))
+                        .build()
+                        .context("Failed to build client verifier")?;
 
                 // Rebuild with client auth
                 server_config = TlsServerConfig::builder()
                     .with_client_cert_verifier(client_verifier)
                     .with_single_cert(
-                        rustls_pemfile::certs(&mut std::io::BufReader::new(
-                            std::fs::File::open(&tls_config.cert_path)?
-                        ))
+                        rustls_pemfile::certs(&mut std::io::BufReader::new(std::fs::File::open(
+                            &tls_config.cert_path,
+                        )?))
                         .collect::<Result<Vec<_>, _>>()?,
                         rustls_pemfile::private_key(&mut std::io::BufReader::new(
-                            std::fs::File::open(&tls_config.key_path)?
+                            std::fs::File::open(&tls_config.key_path)?,
                         ))?
                         .ok_or_else(|| anyhow!("No private key found"))?,
                     )
@@ -942,7 +945,9 @@ impl TlsListener {
                 match Self::read_xml_frame(&mut read_half, &mut buffer).await {
                     Ok(Some(frame)) => {
                         let frame_len = frame.len();
-                        state_read.bytes_received.fetch_add(frame_len as u64, Ordering::Relaxed);
+                        state_read
+                            .bytes_received
+                            .fetch_add(frame_len as u64, Ordering::Relaxed);
                         state_read.messages_received.fetch_add(1, Ordering::Relaxed);
 
                         debug!(

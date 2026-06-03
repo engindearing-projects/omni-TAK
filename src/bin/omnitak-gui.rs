@@ -51,6 +51,11 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "OmniTAK - TAK Server Aggregator",
         options,
-        Box::new(move |cc| Ok(Box::new(omnitak_gui::OmniTakApp::new(cc, config_path_clone)))),
+        Box::new(move |cc| {
+            Ok(Box::new(omnitak_gui::OmniTakApp::new(
+                cc,
+                config_path_clone,
+            )))
+        }),
     )
 }

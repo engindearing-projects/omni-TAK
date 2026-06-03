@@ -43,7 +43,13 @@ fn scan_for_certificates() -> Option<CertificateScanResult> {
 
         // Look for CA certificate
         if ca_path.is_none() {
-            for ca_name in &["ca.pem", "ca.crt", "ca-cert.pem", "truststore.pem", "ca.p12"] {
+            for ca_name in &[
+                "ca.pem",
+                "ca.crt",
+                "ca-cert.pem",
+                "truststore.pem",
+                "ca.p12",
+            ] {
                 let path = expanded_path.join(ca_name);
                 if path.exists() {
                     ca_path = Some(path.to_string_lossy().to_string());
@@ -109,7 +115,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
         let mut quick_connect_state = app.ui_state.quick_connect.take().unwrap();
         let mut close_wizard = false;
 
-        if let Some((msg, level)) = super::quick_connect::render_quick_connect(ui, app, &mut quick_connect_state) {
+        if let Some((msg, level)) =
+            super::quick_connect::render_quick_connect(ui, app, &mut quick_connect_state)
+        {
             app.show_status(msg, level, 3);
         }
 
@@ -130,7 +138,11 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui.button("🔄 Refresh").clicked() {
                 app.refresh_from_api();
-                app.show_status("Connections refreshed".to_string(), crate::StatusLevel::Success, 2);
+                app.show_status(
+                    "Connections refreshed".to_string(),
+                    crate::StatusLevel::Success,
+                    2,
+                );
             }
 
             // Quick Connect button - prominent placement
@@ -203,11 +215,17 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                         // Host and Port
                         ui.horizontal(|ui| {
                             ui.label("Host:");
-                            ui.add(egui::TextEdit::singleline(&mut dialog_state.config.host).desired_width(200.0));
+                            ui.add(
+                                egui::TextEdit::singleline(&mut dialog_state.config.host)
+                                    .desired_width(200.0),
+                            );
                             ui.add_space(10.0);
                             ui.label("Port:");
                             let mut port_str = dialog_state.config.port.to_string();
-                            if ui.add(egui::TextEdit::singleline(&mut port_str).desired_width(80.0)).changed() {
+                            if ui
+                                .add(egui::TextEdit::singleline(&mut port_str).desired_width(80.0))
+                                .changed()
+                            {
                                 if let Ok(port) = port_str.parse::<u16>() {
                                     dialog_state.config.port = port;
                                 }
@@ -221,10 +239,26 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                             egui::ComboBox::from_id_salt("protocol_combo")
                                 .selected_text(format!("{}", dialog_state.config.protocol))
                                 .show_ui(ui, |ui| {
-                                    ui.selectable_value(&mut dialog_state.config.protocol, Protocol::Tcp, "TCP");
-                                    ui.selectable_value(&mut dialog_state.config.protocol, Protocol::Udp, "UDP");
-                                    ui.selectable_value(&mut dialog_state.config.protocol, Protocol::Tls, "TLS");
-                                    ui.selectable_value(&mut dialog_state.config.protocol, Protocol::WebSocket, "WebSocket");
+                                    ui.selectable_value(
+                                        &mut dialog_state.config.protocol,
+                                        Protocol::Tcp,
+                                        "TCP",
+                                    );
+                                    ui.selectable_value(
+                                        &mut dialog_state.config.protocol,
+                                        Protocol::Udp,
+                                        "UDP",
+                                    );
+                                    ui.selectable_value(
+                                        &mut dialog_state.config.protocol,
+                                        Protocol::Tls,
+                                        "TLS",
+                                    );
+                                    ui.selectable_value(
+                                        &mut dialog_state.config.protocol,
+                                        Protocol::WebSocket,
+                                        "WebSocket",
+                                    );
                                 });
                         });
                         ui.add_space(5.0);
@@ -241,9 +275,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                                 // Auto-detect button
                                 if ui.button("🔍 Auto-detect Certificates").clicked() {
                                     if let Some(certs) = scan_for_certificates() {
-                                        dialog_state.ca_cert_path = certs.ca_path.unwrap_or_default();
-                                        dialog_state.client_cert_path = certs.client_cert_path.unwrap_or_default();
-                                        dialog_state.client_key_path = certs.client_key_path.unwrap_or_default();
+                                        dialog_state.ca_cert_path =
+                                            certs.ca_path.unwrap_or_default();
+                                        dialog_state.client_cert_path =
+                                            certs.client_cert_path.unwrap_or_default();
+                                        dialog_state.client_key_path =
+                                            certs.client_key_path.unwrap_or_default();
                                     }
                                 }
                                 ui.add_space(5.0);
@@ -251,13 +288,21 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                                 ui.horizontal(|ui| {
                                     ui.label("CA Certificate:");
                                     ui.text_edit_singleline(&mut dialog_state.ca_cert_path);
-                                    if ui.button("📁").clicked() && app.ui_state.cert_ca_promise.is_none() {
-                                        let promise = poll_promise::Promise::spawn_thread("ca_cert_dialog", || {
-                                            rfd::FileDialog::new()
-                                                .add_filter("Certificate Files", &["pem", "crt", "cer", "p12", "pfx"])
-                                                .add_filter("All Files", &["*"])
-                                                .pick_file()
-                                        });
+                                    if ui.button("📁").clicked()
+                                        && app.ui_state.cert_ca_promise.is_none()
+                                    {
+                                        let promise = poll_promise::Promise::spawn_thread(
+                                            "ca_cert_dialog",
+                                            || {
+                                                rfd::FileDialog::new()
+                                                    .add_filter(
+                                                        "Certificate Files",
+                                                        &["pem", "crt", "cer", "p12", "pfx"],
+                                                    )
+                                                    .add_filter("All Files", &["*"])
+                                                    .pick_file()
+                                            },
+                                        );
                                         app.ui_state.cert_ca_promise = Some(promise);
                                     }
                                 });
@@ -265,13 +310,21 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                                 ui.horizontal(|ui| {
                                     ui.label("Client Certificate:");
                                     ui.text_edit_singleline(&mut dialog_state.client_cert_path);
-                                    if ui.button("📁").clicked() && app.ui_state.cert_client_promise.is_none() {
-                                        let promise = poll_promise::Promise::spawn_thread("client_cert_dialog", || {
-                                            rfd::FileDialog::new()
-                                                .add_filter("Certificate Files", &["pem", "crt", "cer", "p12", "pfx"])
-                                                .add_filter("All Files", &["*"])
-                                                .pick_file()
-                                        });
+                                    if ui.button("📁").clicked()
+                                        && app.ui_state.cert_client_promise.is_none()
+                                    {
+                                        let promise = poll_promise::Promise::spawn_thread(
+                                            "client_cert_dialog",
+                                            || {
+                                                rfd::FileDialog::new()
+                                                    .add_filter(
+                                                        "Certificate Files",
+                                                        &["pem", "crt", "cer", "p12", "pfx"],
+                                                    )
+                                                    .add_filter("All Files", &["*"])
+                                                    .pick_file()
+                                            },
+                                        );
                                         app.ui_state.cert_client_promise = Some(promise);
                                     }
                                 });
@@ -279,18 +332,29 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                                 ui.horizontal(|ui| {
                                     ui.label("Client Key:");
                                     ui.text_edit_singleline(&mut dialog_state.client_key_path);
-                                    if ui.button("📁").clicked() && app.ui_state.cert_key_promise.is_none() {
-                                        let promise = poll_promise::Promise::spawn_thread("client_key_dialog", || {
-                                            rfd::FileDialog::new()
-                                                .add_filter("Key Files", &["pem", "key", "p12", "pfx"])
-                                                .add_filter("All Files", &["*"])
-                                                .pick_file()
-                                        });
+                                    if ui.button("📁").clicked()
+                                        && app.ui_state.cert_key_promise.is_none()
+                                    {
+                                        let promise = poll_promise::Promise::spawn_thread(
+                                            "client_key_dialog",
+                                            || {
+                                                rfd::FileDialog::new()
+                                                    .add_filter(
+                                                        "Key Files",
+                                                        &["pem", "key", "p12", "pfx"],
+                                                    )
+                                                    .add_filter("All Files", &["*"])
+                                                    .pick_file()
+                                            },
+                                        );
                                         app.ui_state.cert_key_promise = Some(promise);
                                     }
                                 });
 
-                                ui.checkbox(&mut dialog_state.verify_cert, "Verify Server Certificate");
+                                ui.checkbox(
+                                    &mut dialog_state.verify_cert,
+                                    "Verify Server Certificate",
+                                );
 
                                 ui.horizontal(|ui| {
                                     ui.label("Server Name (optional):");

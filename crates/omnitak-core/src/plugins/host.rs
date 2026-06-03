@@ -26,10 +26,7 @@ pub struct PluginHost {
 
 impl PluginHost {
     /// Create a new plugin host with the given configuration and server list.
-    pub fn new(
-        config: HashMap<String, String>,
-        servers: Vec<ServerConfig>,
-    ) -> Self {
+    pub fn new(config: HashMap<String, String>, servers: Vec<ServerConfig>) -> Self {
         // Build WASI context with inherited stdout/stderr for plugin logging
         let wasi = WasiCtxBuilder::new()
             .inherit_stdout()
@@ -94,14 +91,18 @@ impl host::Host for PluginHost {
 
     /// Get a configuration value by key.
     fn get_config(&mut self, key: String) -> wasmtime::Result<Option<String>> {
-        let config = self.config.read()
+        let config = self
+            .config
+            .read()
             .map_err(|e| wasmtime::Error::msg(format!("Failed to read config: {}", e)))?;
         Ok(config.get(&key).cloned())
     }
 
     /// Get server information by ID.
     fn get_server_info(&mut self, server_id: String) -> wasmtime::Result<Option<host::ServerInfo>> {
-        let servers = self.servers.read()
+        let servers = self
+            .servers
+            .read()
             .map_err(|e| wasmtime::Error::msg(format!("Failed to read servers: {}", e)))?;
 
         Ok(servers.get(&server_id).map(|server| host::ServerInfo {
@@ -122,17 +123,19 @@ mod tests {
     #[test]
     fn test_host_creation() {
         let config = HashMap::new();
-        let servers = vec![
-            ServerConfig::builder()
-                .name("test-server")
-                .host("localhost")
-                .port(8089)
-                .protocol(Protocol::Tcp)
-                .build(),
-        ];
+        let servers = vec![ServerConfig::builder()
+            .name("test-server")
+            .host("localhost")
+            .port(8089)
+            .protocol(Protocol::Tcp)
+            .build()];
 
         let host = PluginHost::new(config, servers);
-        assert!(host.servers.read().unwrap().contains_key(&host.servers.read().unwrap().keys().next().unwrap().clone()));
+        assert!(host
+            .servers
+            .read()
+            .unwrap()
+            .contains_key(&host.servers.read().unwrap().keys().next().unwrap().clone()));
     }
 
     #[test]

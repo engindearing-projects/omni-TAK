@@ -3,13 +3,13 @@
 use crate::auth::AuthService;
 use crate::types::{WsClientMessage, WsServerMessage};
 use axum::{
-    Router,
     extract::{
-        State,
         ws::{Message, WebSocket, WebSocketUpgrade},
+        State,
     },
     response::IntoResponse,
     routing::get,
+    Router,
 };
 use futures::{
     sink::SinkExt,

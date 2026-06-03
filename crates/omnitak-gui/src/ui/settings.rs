@@ -102,7 +102,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                     }
                 }
 
-                if ui.button("📤 Export Configuration").clicked() && app.ui_state.export_promise.is_none() {
+                if ui.button("📤 Export Configuration").clicked()
+                    && app.ui_state.export_promise.is_none()
+                {
                     let promise = poll_promise::Promise::spawn_thread("export_dialog", || {
                         rfd::FileDialog::new()
                             .add_filter("YAML", &["yaml", "yml"])
@@ -129,7 +131,11 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                                     drop(state); // Release lock
 
                                     app.show_status(
-                                        format!("Imported {} server(s) from {}", count, path.display()),
+                                        format!(
+                                            "Imported {} server(s) from {}",
+                                            count,
+                                            path.display()
+                                        ),
                                         crate::StatusLevel::Success,
                                         5,
                                     );
@@ -147,7 +153,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                     }
                 }
 
-                if ui.button("📥 Import Configuration").clicked() && app.ui_state.import_promise.is_none() {
+                if ui.button("📥 Import Configuration").clicked()
+                    && app.ui_state.import_promise.is_none()
+                {
                     let promise = poll_promise::Promise::spawn_thread("import_dialog", || {
                         rfd::FileDialog::new()
                             .add_filter("YAML", &["yaml", "yml"])
@@ -159,7 +167,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
             });
 
             ui.add_space(5.0);
-            ui.label(egui::RichText::new("⚠ Importing will add to existing servers").color(egui::Color32::YELLOW));
+            ui.label(
+                egui::RichText::new("⚠ Importing will add to existing servers")
+                    .color(egui::Color32::YELLOW),
+            );
         });
 
     ui.add_space(20.0);
@@ -180,7 +191,11 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                     state.settings.dark_mode
                 };
 
-                let label = if dark_mode { "🌙 Dark Mode" } else { "☀️ Light Mode" };
+                let label = if dark_mode {
+                    "🌙 Dark Mode"
+                } else {
+                    "☀️ Light Mode"
+                };
                 if ui.checkbox(&mut dark_mode, label).changed() {
                     let mut state = app.state.lock().unwrap();
                     state.settings.dark_mode = dark_mode;
@@ -197,7 +212,11 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                     );
                 }
 
-                ui.label(egui::RichText::new("Ctrl+Shift+D").small().color(egui::Color32::GRAY));
+                ui.label(
+                    egui::RichText::new("Ctrl+Shift+D")
+                        .small()
+                        .color(egui::Color32::GRAY),
+                );
             });
 
             ui.add_space(10.0);
@@ -365,14 +384,19 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                     state.settings.auto_start_connections
                 };
 
-                if ui.checkbox(&mut auto_start, "Auto-start connections on launch").changed() {
+                if ui
+                    .checkbox(&mut auto_start, "Auto-start connections on launch")
+                    .changed()
+                {
                     let mut state = app.state.lock().unwrap();
                     state.settings.auto_start_connections = auto_start;
                     settings_changed = true;
                 }
 
                 ui.label(egui::RichText::new("ℹ").color(egui::Color32::LIGHT_BLUE))
-                    .on_hover_text("Automatically connect to all enabled servers when the application starts");
+                    .on_hover_text(
+                        "Automatically connect to all enabled servers when the application starts",
+                    );
             });
 
             ui.add_space(10.0);
@@ -387,7 +411,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut OmniTakApp) {
                 };
 
                 let mut temp_value = max_messages.to_string();
-                if ui.add(egui::TextEdit::singleline(&mut temp_value).desired_width(100.0)).changed() {
+                if ui
+                    .add(egui::TextEdit::singleline(&mut temp_value).desired_width(100.0))
+                    .changed()
+                {
                     if let Ok(value) = temp_value.parse::<usize>() {
                         if value >= 100 && value <= 100000 {
                             let mut state = app.state.lock().unwrap();

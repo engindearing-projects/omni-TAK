@@ -60,17 +60,14 @@ impl WasmTransformerPlugin {
 
     /// Check if this transformer can handle a given CoT type
     pub fn can_transform(&self, cot_type: &str) -> bool {
-        self.metadata
-            .supported_types
-            .iter()
-            .any(|pattern| {
-                // Simple glob matching
-                if pattern.ends_with('*') {
-                    let prefix = &pattern[..pattern.len() - 1];
-                    cot_type.starts_with(prefix)
-                } else {
-                    cot_type == pattern
-                }
-            })
+        self.metadata.supported_types.iter().any(|pattern| {
+            // Simple glob matching
+            if pattern.ends_with('*') {
+                let prefix = &pattern[..pattern.len() - 1];
+                cot_type.starts_with(prefix)
+            } else {
+                cot_type == pattern
+            }
+        })
     }
 }

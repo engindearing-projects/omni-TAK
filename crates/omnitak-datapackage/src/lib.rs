@@ -6,17 +6,17 @@
 //! - Device staging and configuration
 //! - Cross-device data sharing between ATAK, WinTAK, and OmniTAK
 
+pub mod builder;
+pub mod content;
 pub mod error;
 pub mod manifest;
-pub mod builder;
 pub mod reader;
-pub mod content;
 
-pub use error::{DataPackageError, Result};
-pub use manifest::{Manifest, ManifestParameter, ManifestContent};
 pub use builder::DataPackageBuilder;
-pub use reader::DataPackageReader;
 pub use content::{ContentType, PackageContent, PackageSummary};
+pub use error::{DataPackageError, Result};
+pub use manifest::{Manifest, ManifestContent, ManifestParameter};
+pub use reader::DataPackageReader;
 
 /// TAK Data Package version
 pub const MANIFEST_VERSION: &str = "2";

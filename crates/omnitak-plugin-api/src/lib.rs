@@ -19,7 +19,9 @@ wasmtime::component::bindgen!({
 
 pub use error::{PluginError, PluginResult};
 pub use manager::{PluginManager, PluginManagerConfig};
-pub use metadata::{FilterMetadata, PluginCapability, PluginInfo, PluginMetadata, TransformerMetadata};
+pub use metadata::{
+    FilterMetadata, PluginCapability, PluginInfo, PluginMetadata, TransformerMetadata,
+};
 pub use registry::{PluginCategory, RegistryClient, RegistryManifest, RegistryPlugin};
 pub use runtime::PluginRuntime;
 pub use security::{ResourceLimits, SandboxPolicy};

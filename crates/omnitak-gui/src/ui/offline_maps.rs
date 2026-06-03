@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use walkers::{Tiles, TileId};
+use walkers::{TileId, Tiles};
 
 /// MBTiles database wrapper for offline map tiles
 pub struct MBTilesSource {
@@ -115,7 +115,10 @@ impl MBTilesSource {
 
     /// Get a tile from the database
     pub fn get_tile(&self, zoom: u8, x: u32, y: u32) -> Result<Option<Vec<u8>>> {
-        let conn = self.connection.lock().map_err(|e| anyhow!("Lock error: {}", e))?;
+        let conn = self
+            .connection
+            .lock()
+            .map_err(|e| anyhow!("Lock error: {}", e))?;
 
         // MBTiles uses TMS (flipped Y) coordinate system
         let tms_y = (1 << zoom) - 1 - y;
@@ -173,10 +176,13 @@ impl TileCache {
 
     /// Get a cached tile
     pub fn get(&self, source: &str, zoom: u8, x: u32, y: u32) -> Result<Option<Vec<u8>>> {
-        let conn = self.connection.lock().map_err(|e| anyhow!("Lock error: {}", e))?;
+        let conn = self
+            .connection
+            .lock()
+            .map_err(|e| anyhow!("Lock error: {}", e))?;
 
-        let mut stmt =
-            conn.prepare("SELECT data FROM tiles WHERE source = ? AND zoom = ? AND x = ? AND y = ?")?;
+        let mut stmt = conn
+            .prepare("SELECT data FROM tiles WHERE source = ? AND zoom = ? AND x = ? AND y = ?")?;
 
         let result: Result<Vec<u8>, _> =
             stmt.query_row(params![source, zoom, x, y], |row| row.get(0));
@@ -190,7 +196,10 @@ impl TileCache {
 
     /// Store a tile in the cache
     pub fn put(&self, source: &str, zoom: u8, x: u32, y: u32, data: &[u8]) -> Result<()> {
-        let conn = self.connection.lock().map_err(|e| anyhow!("Lock error: {}", e))?;
+        let conn = self
+            .connection
+            .lock()
+            .map_err(|e| anyhow!("Lock error: {}", e))?;
 
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -233,7 +242,10 @@ impl TileCache {
 
     /// Get cache statistics
     pub fn stats(&self) -> Result<CacheStats> {
-        let conn = self.connection.lock().map_err(|e| anyhow!("Lock error: {}", e))?;
+        let conn = self
+            .connection
+            .lock()
+            .map_err(|e| anyhow!("Lock error: {}", e))?;
 
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM tiles", [], |row| row.get(0))?;
         let size: i64 = conn.query_row(
@@ -250,7 +262,10 @@ impl TileCache {
 
     /// Clear the entire cache
     pub fn clear(&self) -> Result<()> {
-        let conn = self.connection.lock().map_err(|e| anyhow!("Lock error: {}", e))?;
+        let conn = self
+            .connection
+            .lock()
+            .map_err(|e| anyhow!("Lock error: {}", e))?;
         conn.execute("DELETE FROM tiles", [])?;
         Ok(())
     }
@@ -311,9 +326,7 @@ impl GeoJsonLayer {
                             .properties
                             .map(|p| {
                                 p.into_iter()
-                                    .filter_map(|(k, v)| {
-                                        v.as_str().map(|s| (k, s.to_string()))
-                                    })
+                                    .filter_map(|(k, v)| v.as_str().map(|s| (k, s.to_string())))
                                     .collect()
                             })
                             .unwrap_or_default();
@@ -400,9 +413,17 @@ pub struct KmlPlacemark {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum KmlGeometry {
-    Point { lat: f64, lon: f64, alt: Option<f64> },
-    LineString { points: Vec<(f64, f64, Option<f64>)> },
-    Polygon { outer: Vec<(f64, f64, Option<f64>)> },
+    Point {
+        lat: f64,
+        lon: f64,
+        alt: Option<f64>,
+    },
+    LineString {
+        points: Vec<(f64, f64, Option<f64>)>,
+    },
+    Polygon {
+        outer: Vec<(f64, f64, Option<f64>)>,
+    },
 }
 
 impl KmlLayer {
@@ -615,7 +636,11 @@ pub fn render_overlays(
 
         for feature in &layer.features {
             match feature {
-                GeoFeature::Point { lat, lon, properties } => {
+                GeoFeature::Point {
+                    lat,
+                    lon,
+                    properties,
+                } => {
                     let geo = walkers::lat_lon(*lat, *lon);
                     let screen = projector.project(geo);
                     let pos = egui::pos2(screen.x, screen.y);

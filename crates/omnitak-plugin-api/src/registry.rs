@@ -190,7 +190,10 @@ impl RegistryClient {
         }
 
         if manifests.is_empty() && !errors.is_empty() {
-            return Err(format!("Failed to fetch any registries: {}", errors.join(", ")));
+            return Err(format!(
+                "Failed to fetch any registries: {}",
+                errors.join(", ")
+            ));
         }
 
         Ok(manifests)
@@ -357,7 +360,11 @@ pub fn create_example_registry() -> RegistryManifest {
                 license: "MIT".to_string(),
                 homepage: Some("https://github.com/omnitak/callsign-filter".to_string()),
                 repository: Some("https://github.com/omnitak/callsign-filter".to_string()),
-                keywords: vec!["filter".to_string(), "callsign".to_string(), "regex".to_string()],
+                keywords: vec![
+                    "filter".to_string(),
+                    "callsign".to_string(),
+                    "regex".to_string(),
+                ],
                 dependencies: vec![],
                 downloads: 1500,
                 rating: 4.5,
@@ -379,7 +386,11 @@ pub fn create_example_registry() -> RegistryManifest {
                 license: "Apache-2.0".to_string(),
                 homepage: None,
                 repository: Some("https://github.com/omnitak/geo-fence".to_string()),
-                keywords: vec!["filter".to_string(), "geofence".to_string(), "boundary".to_string()],
+                keywords: vec![
+                    "filter".to_string(),
+                    "geofence".to_string(),
+                    "boundary".to_string(),
+                ],
                 dependencies: vec![],
                 downloads: 2300,
                 rating: 4.8,
@@ -398,12 +409,21 @@ pub fn create_example_registry() -> RegistryManifest {
                     .to_string(),
                 sha256: "ghi789...".to_string(),
                 size: 500_000,
-                capabilities: vec!["video".to_string(), "rtsp".to_string(), "streaming".to_string()],
+                capabilities: vec![
+                    "video".to_string(),
+                    "rtsp".to_string(),
+                    "streaming".to_string(),
+                ],
                 min_omnitak_version: "0.2.0".to_string(),
                 license: "GPL-3.0".to_string(),
                 homepage: None,
                 repository: None,
-                keywords: vec!["video".to_string(), "rtsp".to_string(), "drone".to_string(), "uav".to_string()],
+                keywords: vec![
+                    "video".to_string(),
+                    "rtsp".to_string(),
+                    "drone".to_string(),
+                    "uav".to_string(),
+                ],
                 dependencies: vec![],
                 downloads: 850,
                 rating: 4.2,
@@ -425,7 +445,11 @@ pub fn create_example_registry() -> RegistryManifest {
                 license: "MIT".to_string(),
                 homepage: None,
                 repository: None,
-                keywords: vec!["sensor".to_string(), "weather".to_string(), "temperature".to_string()],
+                keywords: vec![
+                    "sensor".to_string(),
+                    "weather".to_string(),
+                    "temperature".to_string(),
+                ],
                 dependencies: vec![],
                 downloads: 620,
                 rating: 4.0,

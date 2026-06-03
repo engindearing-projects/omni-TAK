@@ -131,7 +131,10 @@ impl Manifest {
                     b"MissionPackageManifest" => {
                         for attr in e.attributes() {
                             let attr = attr.map_err(|e| {
-                                DataPackageError::InvalidManifest(format!("Invalid attribute: {}", e))
+                                DataPackageError::InvalidManifest(format!(
+                                    "Invalid attribute: {}",
+                                    e
+                                ))
                             })?;
                             if attr.key.as_ref() == b"version" {
                                 version = String::from_utf8(attr.value.to_vec())?;
@@ -148,7 +151,10 @@ impl Manifest {
                         let mut value = String::new();
                         for attr in e.attributes() {
                             let attr = attr.map_err(|e| {
-                                DataPackageError::InvalidManifest(format!("Invalid attribute: {}", e))
+                                DataPackageError::InvalidManifest(format!(
+                                    "Invalid attribute: {}",
+                                    e
+                                ))
                             })?;
                             match attr.key.as_ref() {
                                 b"name" => name = String::from_utf8(attr.value.to_vec())?,
@@ -164,7 +170,10 @@ impl Manifest {
                         let mut zip_entry = String::new();
                         for attr in e.attributes() {
                             let attr = attr.map_err(|e| {
-                                DataPackageError::InvalidManifest(format!("Invalid attribute: {}", e))
+                                DataPackageError::InvalidManifest(format!(
+                                    "Invalid attribute: {}",
+                                    e
+                                ))
                             })?;
                             match attr.key.as_ref() {
                                 b"ignore" => {

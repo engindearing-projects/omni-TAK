@@ -390,15 +390,13 @@ pub fn render_command_palette(
 
                             ui.vertical(|ui| {
                                 ui.horizontal(|ui| {
-                                    ui.label(
-                                        egui::RichText::new(&cmd.name)
-                                            .strong()
-                                            .color(if is_selected {
-                                                egui::Color32::WHITE
-                                            } else {
-                                                ui.visuals().text_color()
-                                            }),
-                                    );
+                                    ui.label(egui::RichText::new(&cmd.name).strong().color(
+                                        if is_selected {
+                                            egui::Color32::WHITE
+                                        } else {
+                                            ui.visuals().text_color()
+                                        },
+                                    ));
 
                                     if let Some(shortcut) = &cmd.shortcut {
                                         ui.with_layout(
@@ -414,24 +412,18 @@ pub fn render_command_palette(
                                     }
                                 });
 
-                                ui.label(
-                                    egui::RichText::new(&cmd.description)
-                                        .small()
-                                        .color(if is_selected {
-                                            egui::Color32::LIGHT_GRAY
-                                        } else {
-                                            egui::Color32::GRAY
-                                        }),
-                                );
+                                ui.label(egui::RichText::new(&cmd.description).small().color(
+                                    if is_selected {
+                                        egui::Color32::LIGHT_GRAY
+                                    } else {
+                                        egui::Color32::GRAY
+                                    },
+                                ));
                             });
                         });
 
                         // Handle click
-                        if response
-                            .response
-                            .interact(egui::Sense::click())
-                            .clicked()
-                        {
+                        if response.response.interact(egui::Sense::click()).clicked() {
                             executed_command = Some(cmd.id.clone());
                             should_close_from_click = true;
                         }
@@ -447,7 +439,9 @@ pub fn render_command_palette(
                     if palette_state.filtered_commands.is_empty() {
                         ui.vertical_centered(|ui| {
                             ui.add_space(20.0);
-                            ui.label(egui::RichText::new("No commands found").color(egui::Color32::GRAY));
+                            ui.label(
+                                egui::RichText::new("No commands found").color(egui::Color32::GRAY),
+                            );
                         });
                     }
                 });
@@ -535,30 +529,30 @@ pub fn execute_command(app: &mut OmniTakApp, command_id: &str, ctx: &egui::Conte
         }
         "conn.refresh" => {
             app.refresh_from_api();
-            app.show_status("Refreshed from API".to_string(), crate::StatusLevel::Success, 2);
+            app.show_status(
+                "Refreshed from API".to_string(),
+                crate::StatusLevel::Success,
+                2,
+            );
         }
 
         // Tools
         "tools.export" => {
-            app.ui_state.export_promise = Some(poll_promise::Promise::spawn_thread(
-                "export_picker",
-                || {
+            app.ui_state.export_promise =
+                Some(poll_promise::Promise::spawn_thread("export_picker", || {
                     rfd::FileDialog::new()
                         .add_filter("YAML", &["yaml", "yml"])
                         .set_file_name("omnitak-config.yaml")
                         .save_file()
-                },
-            ));
+                }));
         }
         "tools.import" => {
-            app.ui_state.import_promise = Some(poll_promise::Promise::spawn_thread(
-                "import_picker",
-                || {
+            app.ui_state.import_promise =
+                Some(poll_promise::Promise::spawn_thread("import_picker", || {
                     rfd::FileDialog::new()
                         .add_filter("YAML", &["yaml", "yml"])
                         .pick_file()
-                },
-            ));
+                }));
         }
         "tools.clear_messages" => {
             let mut state = app.state.lock().unwrap();
@@ -701,28 +695,24 @@ pub fn handle_keyboard_shortcuts(ctx: &egui::Context, app: &mut OmniTakApp) -> b
 
             // Export: Ctrl + E
             if i.modifiers.ctrl && i.key_pressed(Key::E) {
-                app.ui_state.export_promise = Some(poll_promise::Promise::spawn_thread(
-                    "export_picker",
-                    || {
+                app.ui_state.export_promise =
+                    Some(poll_promise::Promise::spawn_thread("export_picker", || {
                         rfd::FileDialog::new()
                             .add_filter("YAML", &["yaml", "yml"])
                             .set_file_name("omnitak-config.yaml")
                             .save_file()
-                    },
-                ));
+                    }));
                 handled = true;
             }
 
             // Import: Ctrl + I
             if i.modifiers.ctrl && i.key_pressed(Key::I) {
-                app.ui_state.import_promise = Some(poll_promise::Promise::spawn_thread(
-                    "import_picker",
-                    || {
+                app.ui_state.import_promise =
+                    Some(poll_promise::Promise::spawn_thread("import_picker", || {
                         rfd::FileDialog::new()
                             .add_filter("YAML", &["yaml", "yml"])
                             .pick_file()
-                    },
-                ));
+                    }));
                 handled = true;
             }
         }

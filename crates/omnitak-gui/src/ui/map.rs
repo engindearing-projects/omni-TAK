@@ -1,15 +1,15 @@
 //! Map panel for visualizing TAK positions with altitude.
 
+use crate::ui::offline_maps::{render_overlays, OfflineMapManager};
 use crate::{AppState, MessageLog};
-use crate::ui::offline_maps::{OfflineMapManager, render_overlays};
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use walkers::sources::{Mapbox, MapboxStyle, OpenStreetMap};
 use walkers::{HttpTiles, Map, MapMemory, Plugin, Projector, Tiles};
-use walkers::sources::{OpenStreetMap, Mapbox, MapboxStyle};
 
 /// Available map tile providers
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -164,7 +164,10 @@ impl BlueForceTack {
         let latest = self.history.back().unwrap();
         let prev = self.history.get(self.history.len() - 2).unwrap();
 
-        let dt = latest.timestamp.duration_since(prev.timestamp).as_secs_f64();
+        let dt = latest
+            .timestamp
+            .duration_since(prev.timestamp)
+            .as_secs_f64();
         if dt < 0.1 {
             return (None, None);
         }
@@ -366,7 +369,6 @@ impl MapPanelState {
     }
 }
 
-
 /// Converts altitude to color (low = blue, mid = green, high = red)
 fn altitude_to_color(altitude: f64, min_alt: f64, max_alt: f64) -> egui::Color32 {
     let normalized = ((altitude - min_alt) / (max_alt - min_alt)).clamp(0.0, 1.0);
@@ -374,19 +376,11 @@ fn altitude_to_color(altitude: f64, min_alt: f64, max_alt: f64) -> egui::Color32
     if normalized < 0.5 {
         // Blue to green (0.0 - 0.5)
         let t = normalized * 2.0;
-        egui::Color32::from_rgb(
-            0,
-            (255.0 * t) as u8,
-            (255.0 * (1.0 - t)) as u8,
-        )
+        egui::Color32::from_rgb(0, (255.0 * t) as u8, (255.0 * (1.0 - t)) as u8)
     } else {
         // Green to red (0.5 - 1.0)
         let t = (normalized - 0.5) * 2.0;
-        egui::Color32::from_rgb(
-            (255.0 * t) as u8,
-            (255.0 * (1.0 - t)) as u8,
-            0,
-        )
+        egui::Color32::from_rgb((255.0 * t) as u8, (255.0 * (1.0 - t)) as u8, 0)
     }
 }
 
@@ -568,7 +562,9 @@ impl Plugin for BlueForceTrackingPlugin {
 
             // Draw track history trail
             if self.show_trails && track.history.len() > 1 {
-                let trail_points: Vec<egui::Pos2> = track.history.iter()
+                let trail_points: Vec<egui::Pos2> = track
+                    .history
+                    .iter()
                     .rev()
                     .take(self.trail_length)
                     .rev()
@@ -628,10 +624,11 @@ impl Plugin for BlueForceTrackingPlugin {
                             // Draw heading arrow
                             let arrow_len = (spd * 3.0).min(50.0).max(15.0) as f32;
                             let hdg_rad = hdg.to_radians();
-                            let arrow_end = screen_pos + egui::vec2(
-                                arrow_len * hdg_rad.sin() as f32,
-                                -arrow_len * hdg_rad.cos() as f32,
-                            );
+                            let arrow_end = screen_pos
+                                + egui::vec2(
+                                    arrow_len * hdg_rad.sin() as f32,
+                                    -arrow_len * hdg_rad.cos() as f32,
+                                );
 
                             painter.arrow(
                                 screen_pos,
@@ -680,7 +677,11 @@ pub struct DrawnShapesPlugin {
 }
 
 impl DrawnShapesPlugin {
-    pub fn new(shapes: Vec<DrawnShape>, drawing_points: Vec<(f64, f64)>, current_tool: DrawingTool) -> Self {
+    pub fn new(
+        shapes: Vec<DrawnShape>,
+        drawing_points: Vec<(f64, f64)>,
+        current_tool: DrawingTool,
+    ) -> Self {
         Self {
             shapes,
             drawing_points,
@@ -702,7 +703,12 @@ impl Plugin for DrawnShapesPlugin {
         // Draw completed shapes
         for shape in &self.shapes {
             match shape {
-                DrawnShape::Marker { lat, lon, label, color } => {
+                DrawnShape::Marker {
+                    lat,
+                    lon,
+                    label,
+                    color,
+                } => {
                     let geo = walkers::lat_lon(*lat, *lon);
                     let screen = projector.project(geo);
                     let pos = egui::pos2(screen.x, screen.y);
@@ -721,9 +727,14 @@ impl Plugin for DrawnShapesPlugin {
                         );
                     }
                 }
-                DrawnShape::Line { points, color, width } => {
+                DrawnShape::Line {
+                    points,
+                    color,
+                    width,
+                } => {
                     if points.len() >= 2 {
-                        let screen_points: Vec<egui::Pos2> = points.iter()
+                        let screen_points: Vec<egui::Pos2> = points
+                            .iter()
                             .map(|(lat, lon)| {
                                 let geo = walkers::lat_lon(*lat, *lon);
                                 let s = projector.project(geo);
@@ -740,7 +751,13 @@ impl Plugin for DrawnShapesPlugin {
                         }
                     }
                 }
-                DrawnShape::Circle { center_lat, center_lon, radius_m, color, filled } => {
+                DrawnShape::Circle {
+                    center_lat,
+                    center_lon,
+                    radius_m,
+                    color,
+                    filled,
+                } => {
                     let center_geo = walkers::lat_lon(*center_lat, *center_lon);
                     let center_screen = projector.project(center_geo);
                     let center_pos = egui::pos2(center_screen.x, center_screen.y);
@@ -757,9 +774,14 @@ impl Plugin for DrawnShapesPlugin {
                     }
                     painter.circle_stroke(center_pos, screen_radius, egui::Stroke::new(2.0, c));
                 }
-                DrawnShape::Polygon { points, color, filled } => {
+                DrawnShape::Polygon {
+                    points,
+                    color,
+                    filled,
+                } => {
                     if points.len() >= 3 {
-                        let screen_points: Vec<egui::Pos2> = points.iter()
+                        let screen_points: Vec<egui::Pos2> = points
+                            .iter()
                             .map(|(lat, lon)| {
                                 let geo = walkers::lat_lon(*lat, *lon);
                                 let s = projector.project(geo);
@@ -785,7 +807,12 @@ impl Plugin for DrawnShapesPlugin {
                         }
                     }
                 }
-                DrawnShape::RangeRing { center_lat, center_lon, rings, color } => {
+                DrawnShape::RangeRing {
+                    center_lat,
+                    center_lon,
+                    rings,
+                    color,
+                } => {
                     let center_geo = walkers::lat_lon(*center_lat, *center_lon);
                     let center_screen = projector.project(center_geo);
                     let center_pos = egui::pos2(center_screen.x, center_screen.y);
@@ -819,7 +846,9 @@ impl Plugin for DrawnShapesPlugin {
 
         // Draw in-progress shape
         if !self.drawing_points.is_empty() {
-            let screen_points: Vec<egui::Pos2> = self.drawing_points.iter()
+            let screen_points: Vec<egui::Pos2> = self
+                .drawing_points
+                .iter()
                 .map(|(lat, lon)| {
                     let geo = walkers::lat_lon(*lat, *lon);
                     let s = projector.project(geo);
@@ -924,7 +953,11 @@ fn draw_marker(
 
     // Draw marker circle
     painter.circle_filled(screen_pos, radius, color);
-    painter.circle_stroke(screen_pos, radius, egui::Stroke::new(2.0, egui::Color32::WHITE));
+    painter.circle_stroke(
+        screen_pos,
+        radius,
+        egui::Stroke::new(2.0, egui::Color32::WHITE),
+    );
 
     // Draw callsign label
     if let Some(callsign) = &msg.callsign {
@@ -984,7 +1017,10 @@ pub fn show(ui: &mut egui::Ui, app_state: &Arc<Mutex<AppState>>, map_state: &mut
 
         for tool in &tools {
             let selected = map_state.drawing_tool == *tool;
-            if ui.selectable_label(selected, format!("{} {}", tool.icon(), tool.name())).clicked() {
+            if ui
+                .selectable_label(selected, format!("{} {}", tool.icon(), tool.name()))
+                .clicked()
+            {
                 map_state.drawing_tool = *tool;
                 map_state.drawing_points.clear();
             }
@@ -1048,7 +1084,11 @@ pub fn show(ui: &mut egui::Ui, app_state: &Arc<Mutex<AppState>>, map_state: &mut
     ui.horizontal(|ui| {
         ui.checkbox(&mut map_state.show_trails, "Show Trails");
         if map_state.show_trails {
-            ui.add(egui::DragValue::new(&mut map_state.trail_length).prefix("Length: ").range(10..=200));
+            ui.add(
+                egui::DragValue::new(&mut map_state.trail_length)
+                    .prefix("Length: ")
+                    .range(10..=200),
+            );
         }
         ui.separator();
         ui.checkbox(&mut map_state.show_vectors, "Speed/Heading");
@@ -1168,7 +1208,11 @@ pub fn show(ui: &mut egui::Ui, app_state: &Arc<Mutex<AppState>>, map_state: &mut
     if let Some(promise) = &map_state.layer_picker_promise {
         if let Some(result) = promise.ready() {
             if let Some(path) = result {
-                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                let ext = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
                 match ext.as_str() {
                     "geojson" | "json" => {
                         if let Err(e) = map_state.offline_manager.add_geojson(path.clone()) {
@@ -1198,113 +1242,118 @@ pub fn show(ui: &mut egui::Ui, app_state: &Arc<Mutex<AppState>>, map_state: &mut
         map_state.offline_manager.geojson_layers.len(),
         map_state.offline_manager.kml_layers.len()
     ))
-        .default_open(false)
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                if ui.button("📂 Load GeoJSON").clicked() && map_state.layer_picker_promise.is_none() {
-                    map_state.layer_picker_promise = Some(poll_promise::Promise::spawn_thread(
-                        "geojson_picker",
-                        || {
-                            rfd::FileDialog::new()
-                                .add_filter("GeoJSON", &["geojson", "json"])
-                                .pick_file()
-                        },
-                    ));
-                }
-
-                if ui.button("📂 Load KML").clicked() && map_state.layer_picker_promise.is_none() {
-                    map_state.layer_picker_promise = Some(poll_promise::Promise::spawn_thread(
-                        "kml_picker",
-                        || {
-                            rfd::FileDialog::new()
-                                .add_filter("KML", &["kml"])
-                                .pick_file()
-                        },
-                    ));
-                }
-
-                if ui.button("📂 Load MBTiles").clicked() && map_state.layer_picker_promise.is_none() {
-                    map_state.layer_picker_promise = Some(poll_promise::Promise::spawn_thread(
-                        "mbtiles_picker",
-                        || {
-                            rfd::FileDialog::new()
-                                .add_filter("MBTiles", &["mbtiles"])
-                                .pick_file()
-                        },
-                    ));
-                }
-            });
-
-            // List GeoJSON layers
-            if !map_state.offline_manager.geojson_layers.is_empty() {
-                ui.separator();
-                ui.label("GeoJSON Layers:");
-                let mut to_remove = None;
-                for (i, layer) in map_state.offline_manager.geojson_layers.iter_mut().enumerate() {
-                    ui.horizontal(|ui| {
-                        ui.checkbox(&mut layer.visible, "");
-                        ui.label(&layer.name);
-                        ui.label(format!("({} features)", layer.features.len()));
-                        if ui.small_button("🗑️").clicked() {
-                            to_remove = Some(i);
-                        }
-                    });
-                }
-                if let Some(idx) = to_remove {
-                    map_state.offline_manager.geojson_layers.remove(idx);
-                }
-            }
-
-            // List KML layers
-            if !map_state.offline_manager.kml_layers.is_empty() {
-                ui.separator();
-                ui.label("KML Layers:");
-                let mut to_remove = None;
-                for (i, layer) in map_state.offline_manager.kml_layers.iter_mut().enumerate() {
-                    ui.horizontal(|ui| {
-                        ui.checkbox(&mut layer.visible, "");
-                        ui.label(&layer.name);
-                        ui.label(format!("({} placemarks)", layer.placemarks.len()));
-                        if ui.small_button("🗑️").clicked() {
-                            to_remove = Some(i);
-                        }
-                    });
-                }
-                if let Some(idx) = to_remove {
-                    map_state.offline_manager.kml_layers.remove(idx);
-                }
-            }
-
-            // List MBTiles sources
-            if !map_state.offline_manager.mbtiles_sources.is_empty() {
-                ui.separator();
-                ui.label("Offline Map Sources:");
-                for (path, source) in &map_state.offline_manager.mbtiles_sources {
-                    ui.horizontal(|ui| {
-                        ui.label("📦");
-                        ui.label(&source.metadata().name);
-                        ui.label(format!(
-                            "(zoom {}-{})",
-                            source.metadata().min_zoom,
-                            source.metadata().max_zoom
-                        ));
-                    });
-                }
-            }
-
-            // Cache statistics
-            if let Some(stats) = map_state.offline_manager.cache_stats() {
-                ui.separator();
-                ui.label(format!(
-                    "Tile Cache: {} tiles, {:.1} MB",
-                    stats.tile_count,
-                    stats.size_bytes as f64 / 1_048_576.0
+    .default_open(false)
+    .show(ui, |ui| {
+        ui.horizontal(|ui| {
+            if ui.button("📂 Load GeoJSON").clicked() && map_state.layer_picker_promise.is_none()
+            {
+                map_state.layer_picker_promise = Some(poll_promise::Promise::spawn_thread(
+                    "geojson_picker",
+                    || {
+                        rfd::FileDialog::new()
+                            .add_filter("GeoJSON", &["geojson", "json"])
+                            .pick_file()
+                    },
                 ));
-                if ui.small_button("Clear Cache").clicked() {
-                    let _ = map_state.offline_manager.clear_cache();
-                }
+            }
+
+            if ui.button("📂 Load KML").clicked() && map_state.layer_picker_promise.is_none() {
+                map_state.layer_picker_promise =
+                    Some(poll_promise::Promise::spawn_thread("kml_picker", || {
+                        rfd::FileDialog::new()
+                            .add_filter("KML", &["kml"])
+                            .pick_file()
+                    }));
+            }
+
+            if ui.button("📂 Load MBTiles").clicked() && map_state.layer_picker_promise.is_none()
+            {
+                map_state.layer_picker_promise = Some(poll_promise::Promise::spawn_thread(
+                    "mbtiles_picker",
+                    || {
+                        rfd::FileDialog::new()
+                            .add_filter("MBTiles", &["mbtiles"])
+                            .pick_file()
+                    },
+                ));
             }
         });
+
+        // List GeoJSON layers
+        if !map_state.offline_manager.geojson_layers.is_empty() {
+            ui.separator();
+            ui.label("GeoJSON Layers:");
+            let mut to_remove = None;
+            for (i, layer) in map_state
+                .offline_manager
+                .geojson_layers
+                .iter_mut()
+                .enumerate()
+            {
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut layer.visible, "");
+                    ui.label(&layer.name);
+                    ui.label(format!("({} features)", layer.features.len()));
+                    if ui.small_button("🗑️").clicked() {
+                        to_remove = Some(i);
+                    }
+                });
+            }
+            if let Some(idx) = to_remove {
+                map_state.offline_manager.geojson_layers.remove(idx);
+            }
+        }
+
+        // List KML layers
+        if !map_state.offline_manager.kml_layers.is_empty() {
+            ui.separator();
+            ui.label("KML Layers:");
+            let mut to_remove = None;
+            for (i, layer) in map_state.offline_manager.kml_layers.iter_mut().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut layer.visible, "");
+                    ui.label(&layer.name);
+                    ui.label(format!("({} placemarks)", layer.placemarks.len()));
+                    if ui.small_button("🗑️").clicked() {
+                        to_remove = Some(i);
+                    }
+                });
+            }
+            if let Some(idx) = to_remove {
+                map_state.offline_manager.kml_layers.remove(idx);
+            }
+        }
+
+        // List MBTiles sources
+        if !map_state.offline_manager.mbtiles_sources.is_empty() {
+            ui.separator();
+            ui.label("Offline Map Sources:");
+            for (path, source) in &map_state.offline_manager.mbtiles_sources {
+                ui.horizontal(|ui| {
+                    ui.label("📦");
+                    ui.label(&source.metadata().name);
+                    ui.label(format!(
+                        "(zoom {}-{})",
+                        source.metadata().min_zoom,
+                        source.metadata().max_zoom
+                    ));
+                });
+            }
+        }
+
+        // Cache statistics
+        if let Some(stats) = map_state.offline_manager.cache_stats() {
+            ui.separator();
+            ui.label(format!(
+                "Tile Cache: {} tiles, {:.1} MB",
+                stats.tile_count,
+                stats.size_bytes as f64 / 1_048_576.0
+            ));
+            if ui.small_button("Clear Cache").clicked() {
+                let _ = map_state.offline_manager.clear_cache();
+            }
+        }
+    });
 
     // Get messages with positions and update tracks
     let state = app_state.lock().unwrap();
@@ -1345,7 +1394,8 @@ pub fn show(ui: &mut egui::Ui, app_state: &Arc<Mutex<AppState>>, map_state: &mut
 
     // Determine map center
     let center_pos = if map_state.follow_mode {
-        positions.last()
+        positions
+            .last()
             .and_then(|msg| {
                 if let (Some(lat), Some(lon)) = (msg.lat, msg.lon) {
                     Some(walkers::lat_lon(lat, lon))
@@ -1443,7 +1493,8 @@ pub fn show(ui: &mut egui::Ui, app_state: &Arc<Mutex<AppState>>, map_state: &mut
                         map_state.drawing_points.push((click_lat, click_lon));
                     } else {
                         let (center_lat, center_lon) = map_state.drawing_points[0];
-                        let radius = haversine_distance(center_lat, center_lon, click_lat, click_lon);
+                        let radius =
+                            haversine_distance(center_lat, center_lon, click_lat, click_lon);
                         map_state.shapes.push(DrawnShape::Circle {
                             center_lat,
                             center_lon,
@@ -1520,7 +1571,10 @@ pub fn show(ui: &mut egui::Ui, app_state: &Arc<Mutex<AppState>>, map_state: &mut
                                 ui.label(format!("({:.4}, {:.4})", latest.lat, latest.lon));
 
                                 if let Some(spd) = speed {
-                                    ui.colored_label(egui::Color32::YELLOW, format!("{:.1}m/s", spd));
+                                    ui.colored_label(
+                                        egui::Color32::YELLOW,
+                                        format!("{:.1}m/s", spd),
+                                    );
                                 }
 
                                 if let Some(hdg) = heading {

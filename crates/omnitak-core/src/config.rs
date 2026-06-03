@@ -1232,18 +1232,9 @@ api:
         let plugin_config = PluginConfig::default();
         assert_eq!(plugin_config.plugin_dir, "./plugins");
         assert!(!plugin_config.hot_reload);
-        assert_eq!(
-            plugin_config.resource_limits.max_execution_time_ms,
-            10000
-        );
-        assert_eq!(
-            plugin_config.resource_limits.max_memory_bytes,
-            52_428_800
-        );
-        assert_eq!(
-            plugin_config.resource_limits.max_concurrent_executions,
-            100
-        );
+        assert_eq!(plugin_config.resource_limits.max_execution_time_ms, 10000);
+        assert_eq!(plugin_config.resource_limits.max_memory_bytes, 52_428_800);
+        assert_eq!(plugin_config.resource_limits.max_concurrent_executions, 100);
         assert!(!plugin_config.sandbox_policy.allow_network);
         assert!(plugin_config.filters.is_empty());
         assert!(plugin_config.transformers.is_empty());

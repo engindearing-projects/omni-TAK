@@ -1,11 +1,11 @@
 //! Smoke test to verify basic functionality of the bidirectional aggregator
 
+use omnitak_pool::{
+    AggregatorConfig, ConnectionPool, DistributorConfig, FilterRule, InboundMessage,
+    MessageAggregator, MessageDistributor, PoolConfig,
+};
 use std::sync::Arc;
 use std::time::Duration;
-use omnitak_pool::{
-    AggregatorConfig, ConnectionPool, DistributorConfig, FilterRule,
-    InboundMessage, MessageAggregator, MessageDistributor, PoolConfig,
-};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_basic_pool_initialization() {
@@ -60,13 +60,18 @@ async fn test_basic_pool_initialization() {
     };
 
     let sender = aggregator.sender();
-    sender.send_async(inbound_msg).await.expect("Failed to send message");
+    sender
+        .send_async(inbound_msg)
+        .await
+        .expect("Failed to send message");
 
     // Give it a moment to process
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Clean up
-    pool.remove_connection(&conn_id).await.expect("Failed to remove connection");
+    pool.remove_connection(&conn_id)
+        .await
+        .expect("Failed to remove connection");
     assert_eq!(pool.connection_count(), 0);
 
     aggregator.stop().await;
@@ -175,10 +180,14 @@ async fn test_multiple_connections() {
     assert_eq!(pool.connection_count(), 2);
 
     // Remove connections
-    pool.remove_connection(&conn1).await.expect("Failed to remove connection 1");
+    pool.remove_connection(&conn1)
+        .await
+        .expect("Failed to remove connection 1");
     assert_eq!(pool.connection_count(), 1);
 
-    pool.remove_connection(&conn2).await.expect("Failed to remove connection 2");
+    pool.remove_connection(&conn2)
+        .await
+        .expect("Failed to remove connection 2");
     assert_eq!(pool.connection_count(), 0);
 
     pool.shutdown().await.expect("Failed to shutdown pool");

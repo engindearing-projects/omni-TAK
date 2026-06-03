@@ -44,7 +44,10 @@ async fn get_auth_token(client: &Client, username: &str, password: &str) -> Stri
 
     assert_eq!(response.status(), StatusCode::OK, "Login failed");
 
-    let body: serde_json::Value = response.json().await.expect("Failed to parse login response");
+    let body: serde_json::Value = response
+        .json()
+        .await
+        .expect("Failed to parse login response");
     body["access_token"]
         .as_str()
         .expect("No access token in response")
@@ -101,7 +104,11 @@ async fn test_plugin_system_e2e_without_server() {
 
     // Verify test client can be created
     let client = create_test_client();
-    assert!(client.get("https://httpbin.org/status/200").send().await.is_ok());
+    assert!(client
+        .get("https://httpbin.org/status/200")
+        .send()
+        .await
+        .is_ok());
     println!("Test client verified");
 }
 
@@ -181,9 +188,7 @@ async fn test_plugin_api_endpoints_with_server() {
 
     println!("Metrics response status: {}", response.status());
     // Will be 404 if plugin wasn't loaded
-    assert!(
-        response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND
-    );
+    assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
 
     // Step 5: Test plugin health endpoint
     println!("Step 5: Testing plugin health endpoint...");
@@ -265,10 +270,7 @@ async fn test_plugin_api_endpoints_with_server() {
     // Step 10: Test plugin unload
     println!("Step 10: Testing plugin unload...");
     let response = client
-        .delete(&format!(
-            "{}/api/v1/plugins/test-filter",
-            TEST_BASE_URL
-        ))
+        .delete(&format!("{}/api/v1/plugins/test-filter", TEST_BASE_URL))
         .bearer_auth(&token)
         .send()
         .await
@@ -358,7 +360,10 @@ async fn test_plugin_metrics_collection() {
 
     if response.status() == StatusCode::OK {
         let metrics: serde_json::Value = response.json().await.unwrap();
-        println!("Metrics structure: {}", serde_json::to_string_pretty(&metrics).unwrap());
+        println!(
+            "Metrics structure: {}",
+            serde_json::to_string_pretty(&metrics).unwrap()
+        );
 
         // Verify metrics structure
         assert!(metrics.get("pluginId").is_some());

@@ -20,9 +20,9 @@ use omnitak_api::{
     auth::{AuthConfig, AuthService},
     middleware::AuditLogger,
     rest::plugins::{
-        create_plugin_router, LoadPluginRequest, PluginApiState, PluginListResponse,
-        PluginDetailsResponse, PluginMetricsResponse, PluginHealthResponse,
-        UpdatePluginConfigRequest, TogglePluginRequest, PluginType,
+        create_plugin_router, LoadPluginRequest, PluginApiState, PluginDetailsResponse,
+        PluginHealthResponse, PluginListResponse, PluginMetricsResponse, PluginType,
+        TogglePluginRequest, UpdatePluginConfigRequest,
     },
     types::UserRole,
 };
@@ -62,7 +62,11 @@ fn create_test_auth() -> Arc<AuthService> {
         .expect("Failed to create admin user");
 
     auth_service
-        .create_user("operator".to_string(), "operator_password_123", UserRole::Operator)
+        .create_user(
+            "operator".to_string(),
+            "operator_password_123",
+            UserRole::Operator,
+        )
         .expect("Failed to create operator user");
 
     auth_service
@@ -70,8 +74,7 @@ fn create_test_auth() -> Arc<AuthService> {
 
 /// Create router with authentication layer
 fn create_test_router(state: PluginApiState, auth_service: Arc<AuthService>) -> Router {
-    create_plugin_router(state)
-        .layer(axum::Extension(auth_service))
+    create_plugin_router(state).layer(axum::Extension(auth_service))
 }
 
 /// Get admin auth token
@@ -349,10 +352,7 @@ async fn test_update_plugin_config_requires_operator() {
     let response = app.oneshot(request).await.unwrap();
     // Admin has operator permissions, so this should work
     // (would be 404 since plugin doesn't exist)
-    assert!(
-        response.status() == StatusCode::NOT_FOUND
-            || response.status() == StatusCode::OK
-    );
+    assert!(response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::OK);
 }
 
 // ============================================================================

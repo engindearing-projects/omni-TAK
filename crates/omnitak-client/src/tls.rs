@@ -5,12 +5,12 @@ use crate::client::{
 use crate::state::{ConnectionState, ConnectionStatus};
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
+use base64::Engine;
 use bytes::{Buf, BytesMut};
-use omnitak_cert::{CertificateBundle, CertificateData};
 use native_tls::{Certificate, Identity, TlsConnector as NativeTlsConnector};
+use omnitak_cert::{CertificateBundle, CertificateData};
 use std::error::Error;
 use std::path::PathBuf;
-use base64::Engine;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -215,10 +215,12 @@ impl TlsClient {
                 info!("Loading certificates from files");
 
                 // Check if this is a P12 file (both cert and key point to same file)
-                if cert_path == key_path && cert_path.extension().and_then(|s| s.to_str()) == Some("p12") {
+                if cert_path == key_path
+                    && cert_path.extension().and_then(|s| s.to_str()) == Some("p12")
+                {
                     // Load PKCS#12 file directly
-                    let p12_data = std::fs::read(cert_path)
-                        .context("Failed to read P12 certificate file")?;
+                    let p12_data =
+                        std::fs::read(cert_path).context("Failed to read P12 certificate file")?;
 
                     // Try with common passwords
                     let identity = Identity::from_pkcs12(&p12_data, "omnitak")
@@ -234,30 +236,37 @@ impl TlsClient {
                     // This is necessary because native-tls doesn't support loading from separate PEM files
                     info!("Converting PEM certificates to PKCS#12 format");
 
-                    let temp_p12 = std::env::temp_dir().join(format!("omnitak_temp_{}.p12", std::process::id()));
+                    let temp_p12 = std::env::temp_dir()
+                        .join(format!("omnitak_temp_{}.p12", std::process::id()));
 
                     // Create PKCS#12 file from PEM cert and key using 3DES encryption for compatibility
                     let openssl_result = std::process::Command::new("openssl")
                         .args(&[
                             "pkcs12",
                             "-export",
-                            "-descert",  // Use 3DES for better compatibility with native-tls
-                            "-out", temp_p12.to_str().unwrap(),
-                            "-inkey", key_path.to_str().unwrap(),
-                            "-in", cert_path.to_str().unwrap(),
-                            "-password", "pass:",  // Empty password
+                            "-descert", // Use 3DES for better compatibility with native-tls
+                            "-out",
+                            temp_p12.to_str().unwrap(),
+                            "-inkey",
+                            key_path.to_str().unwrap(),
+                            "-in",
+                            cert_path.to_str().unwrap(),
+                            "-password",
+                            "pass:", // Empty password
                         ])
                         .output()
                         .context("Failed to execute openssl command")?;
 
                     if !openssl_result.status.success() {
-                        return Err(anyhow!("Failed to convert PEM to PKCS12: {}",
-                            String::from_utf8_lossy(&openssl_result.stderr)));
+                        return Err(anyhow!(
+                            "Failed to convert PEM to PKCS12: {}",
+                            String::from_utf8_lossy(&openssl_result.stderr)
+                        ));
                     }
 
                     // Load the temporary P12 file
-                    let p12_data = std::fs::read(&temp_p12)
-                        .context("Failed to read temporary P12 file")?;
+                    let p12_data =
+                        std::fs::read(&temp_p12).context("Failed to read temporary P12 file")?;
 
                     let identity = Identity::from_pkcs12(&p12_data, "")
                         .map_err(|e| anyhow!("Failed to load converted P12 identity: {}. This may be due to encryption compatibility issues with native-tls on your platform.", e))?;
@@ -274,8 +283,8 @@ impl TlsClient {
                 // Skip CA loading when verification is disabled to avoid macOS Security.framework issues
                 if let Some(ca_path) = ca_cert_path {
                     if config.verify_server {
-                        let ca_data = std::fs::read(ca_path)
-                            .context("Failed to read CA certificate file")?;
+                        let ca_data =
+                            std::fs::read(ca_path).context("Failed to read CA certificate file")?;
 
                         // Try loading as PEM first, then as P12 truststore
                         let ca_cert = Certificate::from_pem(&ca_data)
@@ -292,7 +301,9 @@ impl TlsClient {
                         builder.add_root_certificate(ca_cert);
                         info!("Loaded custom CA certificate from file");
                     } else {
-                        info!("Skipping CA certificate loading because server verification is disabled");
+                        info!(
+                            "Skipping CA certificate loading because server verification is disabled"
+                        );
                     }
                 }
             }
@@ -359,12 +370,16 @@ impl TlsClient {
                         builder.add_root_certificate(ca_cert);
                         info!("Loaded custom CA certificate from memory");
                     } else {
-                        info!("Skipping CA certificate loading because server verification is disabled");
+                        info!(
+                            "Skipping CA certificate loading because server verification is disabled"
+                        );
                     }
                 }
             }
             TlsCertSource::Bundle(_bundle) => {
-                return Err(anyhow!("Bundle source not supported with native-tls, use Files or Memory"));
+                return Err(anyhow!(
+                    "Bundle source not supported with native-tls, use Files or Memory"
+                ));
             }
         }
 
@@ -377,8 +392,7 @@ impl TlsClient {
 
         // Build the connector - native-tls automatically supports TLS 1.2 and 1.3
         // This provides maximum compatibility with TAK servers
-        let tls_config = builder.build()
-            .context("Failed to build TLS config")?;
+        let tls_config = builder.build().context("Failed to build TLS config")?;
 
         info!("TLS configuration built successfully with native-tls (OpenSSL backend)");
         Ok(tls_config)
@@ -442,7 +456,10 @@ impl TlsClient {
                 return Err(anyhow!("TLS handshake failed: {}", e));
             }
             Err(_) => {
-                error!("TLS handshake timeout after {:?}", self.config.base.connect_timeout);
+                error!(
+                    "TLS handshake timeout after {:?}",
+                    self.config.base.connect_timeout
+                );
                 return Err(anyhow!("TLS handshake timeout"));
             }
         };

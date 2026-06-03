@@ -1,19 +1,19 @@
 //! Plugin management REST API endpoints
 
+use super::ApiError;
 use crate::auth::{AuthUser, RequireAdmin, RequireOperator};
 use crate::middleware::AuditLogger;
 use crate::types::ErrorResponse;
-use super::ApiError;
 use axum::{
-    Json, Router,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post, put},
+    Json, Router,
 };
 use omnitak_plugin_api::{
-    PluginManager, PluginInfo, PluginCapability, FilterMetadata, TransformerMetadata,
-    ResourceLimits, SandboxPolicy,
+    FilterMetadata, PluginCapability, PluginInfo, PluginManager, ResourceLimits, SandboxPolicy,
+    TransformerMetadata,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -144,25 +144,19 @@ pub fn create_plugin_router(state: PluginApiState) -> Router {
         // List and load plugins
         .route("/api/v1/plugins", get(list_plugins))
         .route("/api/v1/plugins", post(load_plugin))
-
         // Plugin details and management
         .route("/api/v1/plugins/{id}", get(get_plugin_details))
         .route("/api/v1/plugins/{id}", delete(unload_plugin))
-
         // Plugin configuration
         .route("/api/v1/plugins/{id}/config", put(update_plugin_config))
         .route("/api/v1/plugins/{id}/toggle", post(toggle_plugin))
-
         // Plugin metrics and health
         .route("/api/v1/plugins/{id}/metrics", get(get_plugin_metrics))
         .route("/api/v1/plugins/{id}/health", get(get_plugin_health))
-
         // Plugin reload
         .route("/api/v1/plugins/{id}/reload", post(reload_plugin))
-
         // Bulk operations
         .route("/api/v1/plugins/reload-all", post(reload_all_plugins))
-
         .with_state(state)
 }
 
@@ -209,10 +203,7 @@ async fn list_plugins(
 
     let total = plugins.len();
 
-    Ok(Json(PluginListResponse {
-        plugins,
-        total,
-    }))
+    Ok(Json(PluginListResponse { plugins, total }))
 }
 
 /// POST /api/v1/plugins - Load a new plugin
@@ -249,26 +240,36 @@ async fn load_plugin(
             let metadata: FilterMetadata = serde_json::from_value(req.config.clone())
                 .map_err(|e| ApiError::BadRequest(format!("Invalid filter metadata: {}", e)))?;
 
-            let plugin = manager.load_filter_plugin(&req.path, metadata)
+            let plugin = manager
+                .load_filter_plugin(&req.path, metadata)
                 .map_err(|e| ApiError::InternalError(format!("Failed to load plugin: {}", e)))?;
 
             // Get plugin info from manager
-            manager.list_plugins()
+            manager
+                .list_plugins()
                 .into_iter()
                 .find(|p| p.id == req.id)
-                .ok_or_else(|| ApiError::InternalError("Plugin loaded but not found in list".to_string()))?
+                .ok_or_else(|| {
+                    ApiError::InternalError("Plugin loaded but not found in list".to_string())
+                })?
         }
         PluginType::Transformer => {
             let metadata: TransformerMetadata = serde_json::from_value(req.config.clone())
-                .map_err(|e| ApiError::BadRequest(format!("Invalid transformer metadata: {}", e)))?;
+                .map_err(|e| {
+                    ApiError::BadRequest(format!("Invalid transformer metadata: {}", e))
+                })?;
 
-            let plugin = manager.load_transformer_plugin(&req.path, metadata)
+            let plugin = manager
+                .load_transformer_plugin(&req.path, metadata)
                 .map_err(|e| ApiError::InternalError(format!("Failed to load plugin: {}", e)))?;
 
-            manager.list_plugins()
+            manager
+                .list_plugins()
                 .into_iter()
                 .find(|p| p.id == req.id)
-                .ok_or_else(|| ApiError::InternalError("Plugin loaded but not found in list".to_string()))?
+                .ok_or_else(|| {
+                    ApiError::InternalError("Plugin loaded but not found in list".to_string())
+                })?
         }
     };
 
@@ -311,7 +312,8 @@ async fn get_plugin_details(
 ) -> Result<Json<PluginDetailsResponse>, ApiError> {
     let manager = state.plugin_manager.read().await;
 
-    let plugin_info = manager.list_plugins()
+    let plugin_info = manager
+        .list_plugins()
         .into_iter()
         .find(|p| p.id == id)
         .ok_or(ApiError::NotFound(format!("Plugin not found: {}", id)))?;
@@ -355,7 +357,8 @@ async fn unload_plugin(
 
     let mut manager = state.plugin_manager.write().await;
 
-    manager.unload_plugin(&id)
+    manager
+        .unload_plugin(&id)
         .map_err(|e| ApiError::InternalError(format!("Failed to unload plugin: {}", e)))?;
 
     info!("Plugin unloaded successfully: {}", id);
@@ -402,7 +405,8 @@ async fn update_plugin_config(
     // TODO: Implement config update in plugin manager
     // For now, just validate the plugin exists
     let manager = state.plugin_manager.read().await;
-    let _ = manager.list_plugins()
+    let _ = manager
+        .list_plugins()
         .into_iter()
         .find(|p| p.id == id)
         .ok_or(ApiError::NotFound(format!("Plugin not found: {}", id)))?;
@@ -484,7 +488,8 @@ async fn get_plugin_metrics(
 ) -> Result<Json<PluginMetricsResponse>, ApiError> {
     let manager = state.plugin_manager.read().await;
 
-    let _ = manager.list_plugins()
+    let _ = manager
+        .list_plugins()
         .into_iter()
         .find(|p| p.id == id)
         .ok_or(ApiError::NotFound(format!("Plugin not found: {}", id)))?;
@@ -529,7 +534,8 @@ async fn get_plugin_health(
 ) -> Result<Json<PluginHealthResponse>, ApiError> {
     let manager = state.plugin_manager.read().await;
 
-    let _ = manager.list_plugins()
+    let _ = manager
+        .list_plugins()
         .into_iter()
         .find(|p| p.id == id)
         .ok_or(ApiError::NotFound(format!("Plugin not found: {}", id)))?;
@@ -605,7 +611,9 @@ async fn reload_all_plugins(
     info!("Reloading all plugins");
 
     let manager = state.plugin_manager.read().await;
-    let result = manager.load_all_plugins().await
+    let result = manager
+        .load_all_plugins()
+        .await
         .map_err(|e| ApiError::InternalError(format!("Failed to reload plugins: {}", e)))?;
 
     info!("Reloaded {} plugins", result);

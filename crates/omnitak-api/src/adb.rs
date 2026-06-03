@@ -1,12 +1,9 @@
 //! ADB integration endpoints for pulling certificates from connected Android devices
 
 use crate::auth::AuthUser;
-use axum::{
-    extract::State,
-    Json,
-};
+use axum::{extract::State, Json};
 use omnitak_adb::{AdbClient, AtakPackage, TakCertificateBundle};
-use omnitak_client::tls::{TlsClient, TlsClientConfig, TlsCertConfig, TlsCertSource, FramingMode};
+use omnitak_client::tls::{FramingMode, TlsCertConfig, TlsCertSource, TlsClient, TlsClientConfig};
 use omnitak_client::ClientConfig;
 use omnitak_core::ConnectionId;
 use serde::{Deserialize, Serialize};
@@ -14,7 +11,7 @@ use std::path::PathBuf;
 use tracing::{error, info, warn};
 use validator::Validate;
 
-use super::rest::{ApiState, ApiError};
+use super::rest::{ApiError, ApiState};
 use super::types::ConnectionInfo;
 
 // ============================================================================
@@ -100,17 +97,19 @@ pub struct DeviceInfoResponse {
 // ============================================================================
 
 /// GET /api/v1/adb/devices - List connected Android devices
-pub async fn list_devices(
-    _user: AuthUser,
-) -> Result<Json<DeviceListResponse>, ApiError> {
+pub async fn list_devices(_user: AuthUser) -> Result<Json<DeviceListResponse>, ApiError> {
     let adb = AdbClient::new();
 
     // Check if ADB is available
     if !adb.is_available() {
-        return Err(ApiError::BadRequest("ADB is not available. Make sure Android SDK Platform-Tools is installed.".to_string()));
+        return Err(ApiError::BadRequest(
+            "ADB is not available. Make sure Android SDK Platform-Tools is installed.".to_string(),
+        ));
     }
 
-    let devices = adb.list_devices().map_err(|e| ApiError::InternalError(format!("Failed to list devices: {}", e)))?;
+    let devices = adb
+        .list_devices()
+        .map_err(|e| ApiError::InternalError(format!("Failed to list devices: {}", e)))?;
 
     let devices = devices
         .into_iter()
@@ -131,20 +130,25 @@ pub async fn pull_certificates(
     _user: AuthUser,
     Json(req): Json<PullCertsRequest>,
 ) -> Result<Json<PullCertsResponse>, ApiError> {
-    req.validate().map_err(|e| ApiError::BadRequest(format!("Invalid request: {}", e)))?;
+    req.validate()
+        .map_err(|e| ApiError::BadRequest(format!("Invalid request: {}", e)))?;
 
     let adb = AdbClient::new();
 
     // Check if ADB is available
     if !adb.is_available() {
-        return Err(ApiError::BadRequest("ADB is not available. Make sure Android SDK Platform-Tools is installed.".to_string()));
+        return Err(ApiError::BadRequest(
+            "ADB is not available. Make sure Android SDK Platform-Tools is installed.".to_string(),
+        ));
     }
 
     // Get device
     let device = if let Some(serial) = req.device_serial {
-        adb.get_device(&serial).map_err(|e| ApiError::NotFound(format!("Device not found: {}", e)))?
+        adb.get_device(&serial)
+            .map_err(|e| ApiError::NotFound(format!("Device not found: {}", e)))?
     } else {
-        adb.auto_detect_device().map_err(|e| ApiError::BadRequest(format!("Failed to detect device: {}", e)))?
+        adb.auto_detect_device()
+            .map_err(|e| ApiError::BadRequest(format!("Failed to detect device: {}", e)))?
     };
 
     info!("Pulling certificates from device: {}", device.serial);
@@ -161,9 +165,9 @@ pub async fn pull_certificates(
 
     // Create output directory
     let cert_dir = PathBuf::from(&req.cert_dir);
-    tokio::fs::create_dir_all(&cert_dir)
-        .await
-        .map_err(|e| ApiError::InternalError(format!("Failed to create certificate directory: {}", e)))?;
+    tokio::fs::create_dir_all(&cert_dir).await.map_err(|e| {
+        ApiError::InternalError(format!("Failed to create certificate directory: {}", e))
+    })?;
 
     // Pull certificates
     let bundle = device
@@ -254,9 +258,18 @@ async fn create_connection_from_bundle(
         // Note: PKCS#12 requires password, which we don't have
         // User will need to convert to PEM or provide password
         warn!("PKCS#12 files require password. Please convert to PEM format:");
-        warn!("  openssl pkcs12 -in {} -out client.pem -clcerts -nokeys", p12.local_path.display());
-        warn!("  openssl pkcs12 -in {} -out client.key -nocerts -nodes", p12.local_path.display());
-        warn!("  openssl pkcs12 -in {} -out ca.pem -cacerts -nokeys", p12.local_path.display());
+        warn!(
+            "  openssl pkcs12 -in {} -out client.pem -clcerts -nokeys",
+            p12.local_path.display()
+        );
+        warn!(
+            "  openssl pkcs12 -in {} -out client.key -nocerts -nodes",
+            p12.local_path.display()
+        );
+        warn!(
+            "  openssl pkcs12 -in {} -out ca.pem -cacerts -nokeys",
+            p12.local_path.display()
+        );
 
         return Err(anyhow::anyhow!(
             "PKCS#12 certificates require password. Please convert to PEM format first."
