@@ -32,6 +32,8 @@
 pub mod event;
 pub mod parser;
 pub mod proto;
+#[cfg(feature = "remote-id")]
+pub mod rid;
 pub mod serializer;
 pub mod validate;
 

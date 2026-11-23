@@ -12,6 +12,15 @@ serde = { version = "1.0", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1.0"
 
+# Native Remote ID (ASTM F3411 / ASD-STAN EN 4709-002) decode, behind the
+# `remote-id` feature so the default build is unchanged.
+remoteid = { version = "0.3.3", optional = true }
+uas-cot = { version = "0.6.0", default-features = false, features = ["remoteid"], optional = true }
+
+[features]
+# Decode raw Wi-Fi/Bluetooth Remote ID broadcasts into `a-u-A` drone CoT.
+remote-id = ["dep:remoteid", "dep:uas-cot"]
+
 [build-dependencies]
 prost-build = "0.13"
 
